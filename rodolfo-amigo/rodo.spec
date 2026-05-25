@@ -48,6 +48,8 @@ a = Analysis(
         "overlay",
         "config_manager",
         "setup_gui",
+        "updater",
+        "version",
     ],
     hookspath=[],
     hooksconfig={},

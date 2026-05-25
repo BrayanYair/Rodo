@@ -58,6 +58,14 @@ def _ov(state: str):
         except Exception: pass
 
 
+# ─── Actualizaciones ─────────────────────────────────────────────────────────
+# Verificar antes de todo — si hay update, el usuario elige y el exe se reemplaza.
+try:
+    from updater import check_and_show_update
+    check_and_show_update()
+except Exception:
+    pass   # sin internet o cualquier error → continuar normal
+
 # ─── Configuración ────────────────────────────────────────────────────────────
 from config_manager import config_exists, load_config
 from setup_gui      import run_setup, run_reconfigure
