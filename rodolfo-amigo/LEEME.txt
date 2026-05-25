@@ -22,8 +22,9 @@ SÍ necesitas:
 
 📋 PRIMEROS PASOS (solo la primera vez):
 ─────────────────────────────────────────
-1. Doble clic en "instalar.bat"
-   Instala todo lo necesario automáticamente.
+1. Doble clic en "instalar.pyw"
+   Se abre una ventana que instala todo automáticamente.
+   (Si no abre, usa instalar.bat como alternativa)
 
 2. Doble clic en "Rodo.bat"
    Se abre una ventana de configuración donde pones:
