@@ -1,0 +1,36 @@
+# Dependencias del bot de Discord (corre en el servidor VPS).
+#
+# Requiere:
+#   - Python 3.11+
+#   - ffmpeg instalado en el sistema (apt install ffmpeg)
+#   - libsodium-dev y python3-dev (para PyNaCl)
+
+# Discord + voz
+py-cord[voice]
+PyNaCl
+davey
+
+# Reproducción de audio
+yt-dlp
+
+# HTTP server (control desde rodolfo-host)
+aiohttp
+
+# Spotify (opcional)
+spotipy
+
+# TTS para que Rodolfo hable en el canal
+edge-tts
+
+# Transcripción de notas de voz
+openai-whisper
+SpeechRecognition
+numpy
+
+# Config
+python-dotenv
+
+# Utilidades
+requests
+fuzzywuzzy
+python-Levenshtein

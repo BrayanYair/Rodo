@@ -1,0 +1,67 @@
+╔══════════════════════════════════════════════════════════════╗
+║              🎤  AMIGO DE RODOLFO  🎤                        ║
+║              Bot de música por voz para Discord              ║
+╚══════════════════════════════════════════════════════════════╝
+
+¿Qué es esto?
+─────────────
+Un programa que te deja controlar la música en Discord
+usando tu voz. Cuando dices "Rodolfo pon despacito", se
+manda al bot y reproduce la canción en el canal de voz
+donde esté el bot.
+
+NO necesitas:
+   ✗ Token de Discord
+   ✗ Permisos especiales
+   ✗ Saber programar
+
+SÍ necesitas:
+   ✓ Micrófono (cualquiera)
+   ✓ Internet
+   ✓ Windows con Python (te lo instala el script)
+
+
+📋 PASOS PARA USAR (solo la PRIMERA vez):
+─────────────────────────────────────────
+1. Doble clic en "instalar.bat"
+   (Si no tienes Python, lo instala automáticamente)
+
+2. Cuando termine, doble clic en "iniciar.bat"
+   Te va a preguntar:
+     • Tu nombre (lo verás como "🎤 TuNombre" en Discord)
+     • El URL del webhook (pídeselo al dueño del bot)
+
+3. ¡Habla! Di cosas como:
+     • "Rodolfo pon despacito"
+     • "Rodolfo siguiente"
+     • "Rodolfo pausa"
+     • "Rodolfo qué está sonando"
+
+
+🎮 DÍA A DÍA:
+─────────────
+   Solo doble clic en "iniciar.bat" y a hablar.
+   Para cerrar: Ctrl+C o cierra la ventana.
+
+
+❓ PROBLEMAS COMUNES:
+────────────────────
+"No detecta mi voz"
+  → Habla más cerca del mic
+  → Verifica que el mic correcto esté seleccionado
+    en Sonido de Windows
+
+"No reproduce nada en Discord"
+  → El dueño del bot tiene que tenerlo encendido
+  → Verifica que el webhook esté bien copiado
+
+"Python no se encuentra"
+  → Ejecuta instalar.bat primero
+  → Si falla, instala Python manualmente:
+    https://www.python.org/downloads/
+    (Marca "Add Python to PATH" al instalar)
+
+
+╔══════════════════════════════════════════════════════════════╗
+║  Disfruta. Si algo no va, manda mensaje al dueño del bot.    ║
+╚══════════════════════════════════════════════════════════════╝

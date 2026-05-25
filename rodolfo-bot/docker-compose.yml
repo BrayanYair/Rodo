@@ -1,0 +1,20 @@
+services:
+  rodolfo:
+    build: .
+    container_name: rodolfo-bot
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persistir modelos de Whisper para no re-descargar entre reinicios
+      - whisper-cache:/root/.cache/whisper
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/status', timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  whisper-cache:

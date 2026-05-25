@@ -1,0 +1,28 @@
+# Dependencias del controlador anfitrión (corre en tu PC Windows).
+# Esto lleva: voz local, cambio de dispositivos audio, control de volumen,
+# y se conecta al bot que corre en Hetzner.
+
+# TTS local (cuando quieres oírlo solo tú)
+edge-tts
+
+# STT — Whisper offline + Google STT online
+openai-whisper
+SpeechRecognition
+pyaudio
+
+# Wake word (opcional)
+openwakeword
+
+# Audio local
+pygame
+numpy
+
+# HTTP al bot remoto
+requests
+
+# Fuzzy matching de nombres de dispositivos
+fuzzywuzzy
+python-Levenshtein
+
+# Config
+python-dotenv

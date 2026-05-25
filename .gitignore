@@ -1,0 +1,56 @@
+# ─── Seguridad — NUNCA subir ──────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+**/tokens.json
+**/*_secret*
+**/*_token*
+
+# ─── Logs y datos generados ───────────────────────────────────────────────────
+*.jsonl
+*.log
+overlay_pos.json
+
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# ─── Entornos virtuales ───────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ─── Archivos temporales de audio ─────────────────────────────────────────────
+*.mp3
+*.wav
+*.ogg
+*.tmp
+
+# ─── Modelos de IA (archivos grandes, no van en Git) ─────────────────────────
+*.pt
+*.bin
+*.onnx
+whisper_models/
+
+# ─── IDEs ─────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─── Instaladores generados ───────────────────────────────────────────────────
+*.exe
+*.msi
+*.apk
+installer/output/

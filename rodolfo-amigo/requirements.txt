@@ -1,0 +1,7 @@
+# Dependencias mínimas — corre en la PC de cada amigo.
+# Solo lo justo: escuchar el mic, transcribir online, enviar a Discord.
+
+SpeechRecognition
+pyaudio
+requests
+python-dotenv
