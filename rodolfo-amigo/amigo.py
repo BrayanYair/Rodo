@@ -15,6 +15,13 @@ import re
 import unicodedata
 import socket
 
+# Cuando corre como .exe de PyInstaller, agregar la carpeta del bundle al path
+# para que los módulos locales (overlay, config_manager, setup_gui) se encuentren.
+if getattr(sys, "frozen", False):
+    _bundle_dir = sys._MEIPASS                      # carpeta temporal del bundle
+    sys.path.insert(0, _bundle_dir)
+    os.chdir(_bundle_dir)
+
 # Forzar UTF-8 en Windows
 if sys.platform == "win32":
     try:
