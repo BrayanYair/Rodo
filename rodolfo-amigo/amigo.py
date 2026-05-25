@@ -54,46 +54,26 @@ def _ov(state: str):
             pass
 
 # ─── Configuración ────────────────────────────────────────────────────────────
-# Intentar cargar .env si existe dotenv
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass  # Si no hay dotenv, leer de os.environ directamente
+from config_manager import config_exists, load_config, save_config
+from setup_gui      import run_setup
 
-WEBHOOK_URL   = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
-BOT_API_URL   = os.getenv("BOT_API_URL",   "").strip().rstrip("/")
-BOT_API_TOKEN = os.getenv("BOT_API_TOKEN", "").strip()
-NOMBRE        = os.getenv("NOMBRE", "").strip()
 ACTIVATOR_NAMES = ("rodolfo", "jarvis", "asistente", "bot")
 
-# Modo de envío: "api" = directo al servidor | "webhook" = via Discord
-MODE = "api" if (BOT_API_URL and BOT_API_TOKEN) else "webhook"
+# Primera vez: mostrar asistente visual
+if not config_exists():
+    cfg = run_setup()
+    if cfg is None:
+        # El usuario cerró el setup sin guardar
+        print("Configuración cancelada. ¡Hasta luego!")
+        sys.exit(0)
+else:
+    cfg = load_config()
 
-# Si no hay nombre configurado, preguntar
-if not NOMBRE:
-    NOMBRE = input("¿Cómo te llamas? (aparecerá en Discord): ").strip() or "Amigo"
-
-# Si no hay ningún método de envío, pedir webhook (modo clásico)
-if MODE == "webhook" and not WEBHOOK_URL:
-    print()
-    print("╔══════════════════════════════════════════════════╗")
-    print("║  Necesitas el enlace del webhook de Discord.     ║")
-    print("║  Pídele a tu amigo (el dueño del bot) que te     ║")
-    print("║  comparta la URL del webhook.                    ║")
-    print("╚══════════════════════════════════════════════════╝")
-    print()
-    WEBHOOK_URL = input("Pega aquí la URL del webhook: ").strip()
-    if not WEBHOOK_URL:
-        print("Sin webhook no puedo enviar comandos. ¡Hasta luego!")
-        input("Presiona Enter para cerrar...")
-        sys.exit(1)
-    # Guardar para la próxima vez
-    env_path = os.path.join(os.path.dirname(__file__), ".env")
-    with open(env_path, "w", encoding="utf-8") as f:
-        f.write(f'DISCORD_WEBHOOK_URL={WEBHOOK_URL}\n')
-        f.write(f'NOMBRE={NOMBRE}\n')
-    print(f"✅ Guardado en .env — no te lo pedirá de nuevo.\n")
+NOMBRE        = cfg.get("nombre", "Amigo")
+MODE          = cfg.get("mode",   "webhook")
+WEBHOOK_URL   = cfg.get("webhook_url", "")
+BOT_API_URL   = cfg.get("api_url",     "").rstrip("/")
+BOT_API_TOKEN = cfg.get("api_token",   "")
 
 
 # ─── Funciones ────────────────────────────────────────────────────────────────
@@ -139,7 +119,7 @@ def send_to_api(text: str) -> bool:
             resp = r.json()
             return resp.get("ok", False)
         if r.status_code == 401:
-            print("[ERROR] Token inválido — revisa BOT_API_TOKEN en .env")
+            print("[ERROR] Token inválido — pide al dueño el token correcto")
         return False
     except requests.ConnectionError:
         print(f"[ERROR] No se pudo conectar a {BOT_API_URL}")
@@ -184,12 +164,14 @@ def main():
         recognizer.adjust_for_ambient_noise(source, duration=1.5)
     print("[INIT] ¡Listo! Empieza a hablar.\n")
 
-    print("Comandos que puedes decir:")
+    print("Comandos de voz:")
     print("  • Rodolfo pon despacito")
     print("  • Rodolfo siguiente / pásala")
     print("  • Rodolfo pausa / sigue")
     print("  • Rodolfo qué está sonando")
     print("  • Rodolfo para la música")
+    print()
+    print("  Tip: escribe 'config' + Enter para cambiar tu configuracion")
     print()
 
     last_activator_time = 0.0
