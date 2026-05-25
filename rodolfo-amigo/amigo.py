@@ -61,16 +61,21 @@ try:
 except ImportError:
     pass  # Si no hay dotenv, leer de os.environ directamente
 
-WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
-NOMBRE      = os.getenv("NOMBRE", "").strip()
+WEBHOOK_URL   = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
+BOT_API_URL   = os.getenv("BOT_API_URL",   "").strip().rstrip("/")
+BOT_API_TOKEN = os.getenv("BOT_API_TOKEN", "").strip()
+NOMBRE        = os.getenv("NOMBRE", "").strip()
 ACTIVATOR_NAMES = ("rodolfo", "jarvis", "asistente", "bot")
+
+# Modo de envío: "api" = directo al servidor | "webhook" = via Discord
+MODE = "api" if (BOT_API_URL and BOT_API_TOKEN) else "webhook"
 
 # Si no hay nombre configurado, preguntar
 if not NOMBRE:
     NOMBRE = input("¿Cómo te llamas? (aparecerá en Discord): ").strip() or "Amigo"
 
-# Si no hay webhook, preguntar
-if not WEBHOOK_URL:
+# Si no hay ningún método de envío, pedir webhook (modo clásico)
+if MODE == "webhook" and not WEBHOOK_URL:
     print()
     print("╔══════════════════════════════════════════════════╗")
     print("║  Necesitas el enlace del webhook de Discord.     ║")
@@ -105,11 +110,11 @@ def has_activator(text):
     return any(name in norm for name in ACTIVATOR_NAMES)
 
 
-def send_to_discord(text):
-    """Envía el comando a Discord via webhook."""
+def send_to_discord(text: str) -> bool:
+    """Envía el comando a Discord via webhook (modo clásico)."""
     try:
         r = requests.post(WEBHOOK_URL, json={
-            "content": text,
+            "content":  text,
             "username": f"🎤 {NOMBRE}",
         }, timeout=10)
         return r.status_code in (200, 204)
@@ -121,13 +126,43 @@ def send_to_discord(text):
         return False
 
 
+def send_to_api(text: str) -> bool:
+    """Envía el comando directamente al bot via API REST (modo servidor)."""
+    try:
+        r = requests.post(
+            f"{BOT_API_URL}/command",
+            json={"text": text, "user": NOMBRE},
+            headers={"Authorization": f"Bearer {BOT_API_TOKEN}"},
+            timeout=10,
+        )
+        if r.status_code == 200:
+            resp = r.json()
+            return resp.get("ok", False)
+        if r.status_code == 401:
+            print("[ERROR] Token inválido — revisa BOT_API_TOKEN en .env")
+        return False
+    except requests.ConnectionError:
+        print(f"[ERROR] No se pudo conectar a {BOT_API_URL}")
+        return False
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        return False
+
+
+def _send(text: str) -> bool:
+    """Selecciona el método de envío según el modo configurado."""
+    return send_to_api(text) if MODE == "api" else send_to_discord(text)
+
+
 # ─── Principal ────────────────────────────────────────────────────────────────
 def main():
+    modo_str = "API directa 🚀" if MODE == "api" else "Discord webhook"
     print()
     print("╔══════════════════════════════════════════════════╗")
     print("║        🎤 Amigo de Rodolfo — Companion          ║")
     print("╠══════════════════════════════════════════════════╣")
     print(f"║  Nombre: {NOMBRE:<39s} ║")
+    print(f"║  Modo:   {modo_str:<39s} ║")
     print("║  Di 'Rodolfo pon [canción]' para poner música   ║")
     print("║  Ctrl+C para salir                              ║")
     print("╚══════════════════════════════════════════════════╝")
@@ -229,10 +264,11 @@ def main():
                     last_activator_time = 0.0
                     continue
 
-            # ¡Comando detectado! Enviar a Discord
-            print(f"  └─ [ENVIANDO] → Discord...", end=" ", flush=True)
+            # ¡Comando detectado! Enviar (Discord o API directa según el modo)
+            destino = "API" if MODE == "api" else "Discord"
+            print(f"  └─ [ENVIANDO] → {destino}...", end=" ", flush=True)
             _ov("sending")
-            if send_to_discord(text):
+            if _send(text):
                 print("✅\n")
                 _ov("ok")
             else:

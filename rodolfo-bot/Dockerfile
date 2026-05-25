@@ -16,7 +16,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código
-COPY bot.py command_parser.py ./
+COPY bot.py api.py command_parser.py responses.py ./
+COPY modules/ ./modules/
 
 # Puerto del API HTTP
 EXPOSE 5000
