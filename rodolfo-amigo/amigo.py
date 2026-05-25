@@ -1,10 +1,10 @@
 """
-amigo_rodolfo.py — Companion de voz para amigos de Rodolfo
-==========================================================
-Captura tu micrófono, escucha comandos como "Rodolfo pon despacito",
-y los envía al bot de Discord para que reproduzca música.
+amigo.py — Cliente de voz para Rodo
+=====================================
+Escucha tu micrófono, detecta el activador "Rodo",
+y manda el comando directamente al servidor de Rodo.
 
-NO necesitas Whisper ni nada pesado — usa Google STT (gratis y rápido).
+NO necesitas Whisper ni nada pesado — Google STT (gratis, sin instalar nada).
 Solo necesitas internet y un micrófono.
 """
 
@@ -15,7 +15,7 @@ import re
 import unicodedata
 import socket
 
-# Forzar UTF-8
+# Forzar UTF-8 en Windows
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -37,7 +37,7 @@ except ImportError:
     input("Presiona Enter para cerrar...")
     sys.exit(1)
 
-# Overlay visual de estado (opcional)
+# Overlay visual de estado (opcional — si falla no importa)
 try:
     from overlay import StatusOverlay as _OverlayClass
     _overlay = _OverlayClass()
@@ -46,68 +46,36 @@ except Exception:
     _overlay = None
 
 def _ov(state: str):
-    """Actualiza el overlay sin lanzar excepciones."""
     if _overlay:
-        try:
-            _overlay.set_state(state)
-        except Exception:
-            pass
+        try: _overlay.set_state(state)
+        except Exception: pass
+
 
 # ─── Configuración ────────────────────────────────────────────────────────────
-from config_manager import config_exists, load_config, save_config
-from setup_gui      import run_setup
+from config_manager import config_exists, load_config
+from setup_gui      import run_setup, run_reconfigure
 
-ACTIVATOR_NAMES = ("rodolfo", "jarvis", "asistente", "bot")
+# Activadores de voz — "rodo" es el principal
+ACTIVATOR_NAMES = ("rodo", "rodolfo", "asistente")
 
-# Primera vez: mostrar asistente visual
+# Primera vez: setup visual automático
 if not config_exists():
     cfg = run_setup()
     if cfg is None:
-        # El usuario cerró el setup sin guardar
-        print("Configuración cancelada. ¡Hasta luego!")
+        print("Configuracion cancelada. Hasta luego!")
         sys.exit(0)
 else:
     cfg = load_config()
 
-NOMBRE        = cfg.get("nombre", "Amigo")
-MODE          = cfg.get("mode",   "webhook")
-WEBHOOK_URL   = cfg.get("webhook_url", "")
-BOT_API_URL   = cfg.get("api_url",     "").rstrip("/")
-BOT_API_TOKEN = cfg.get("api_token",   "")
+NOMBRE        = cfg.get("nombre",    "Amigo")
+BOT_API_URL   = cfg.get("api_url",   "").rstrip("/")
+BOT_API_TOKEN = cfg.get("api_token", "")
 
 
-# ─── Funciones ────────────────────────────────────────────────────────────────
-def normalize(text):
-    """Lowercase, sin acentos."""
-    text = unicodedata.normalize("NFD", text)
-    text = "".join(c for c in text if unicodedata.category(c) != "Mn")
-    return text.lower().strip()
+# ─── Envío al servidor ────────────────────────────────────────────────────────
 
-
-def has_activator(text):
-    """¿El texto contiene 'Rodolfo' o similar?"""
-    norm = normalize(text)
-    return any(name in norm for name in ACTIVATOR_NAMES)
-
-
-def send_to_discord(text: str) -> bool:
-    """Envía el comando a Discord via webhook (modo clásico)."""
-    try:
-        r = requests.post(WEBHOOK_URL, json={
-            "content":  text,
-            "username": f"🎤 {NOMBRE}",
-        }, timeout=10)
-        return r.status_code in (200, 204)
-    except requests.ConnectionError:
-        print("[ERROR] Sin conexión a Discord.")
-        return False
-    except Exception as e:
-        print(f"[ERROR] {e}")
-        return False
-
-
-def send_to_api(text: str) -> bool:
-    """Envía el comando directamente al bot via API REST (modo servidor)."""
+def send_command(text: str) -> bool:
+    """Envía el comando al servidor de Rodo via API."""
     try:
         r = requests.post(
             f"{BOT_API_URL}/command",
@@ -116,10 +84,11 @@ def send_to_api(text: str) -> bool:
             timeout=10,
         )
         if r.status_code == 200:
-            resp = r.json()
-            return resp.get("ok", False)
+            return r.json().get("ok", False)
         if r.status_code == 401:
-            print("[ERROR] Token inválido — pide al dueño el token correcto")
+            print("[ERROR] Contrasena incorrecta — pide al dueno los datos actualizados")
+        elif r.status_code == 0:
+            print("[ERROR] Sin respuesta del servidor")
         return False
     except requests.ConnectionError:
         print(f"[ERROR] No se pudo conectar a {BOT_API_URL}")
@@ -129,75 +98,73 @@ def send_to_api(text: str) -> bool:
         return False
 
 
-def _send(text: str) -> bool:
-    """Selecciona el método de envío según el modo configurado."""
-    return send_to_api(text) if MODE == "api" else send_to_discord(text)
+# ─── Detección del activador ──────────────────────────────────────────────────
+
+def normalize(text: str) -> str:
+    text = unicodedata.normalize("NFD", text)
+    text = "".join(c for c in text if unicodedata.category(c) != "Mn")
+    return text.lower().strip()
+
+
+def has_activator(text: str) -> bool:
+    norm = normalize(text)
+    return any(name in norm for name in ACTIVATOR_NAMES)
 
 
 # ─── Principal ────────────────────────────────────────────────────────────────
+
 def main():
-    modo_str = "API directa 🚀" if MODE == "api" else "Discord webhook"
     print()
-    print("╔══════════════════════════════════════════════════╗")
-    print("║        🎤 Amigo de Rodolfo — Companion          ║")
-    print("╠══════════════════════════════════════════════════╣")
-    print(f"║  Nombre: {NOMBRE:<39s} ║")
-    print(f"║  Modo:   {modo_str:<39s} ║")
-    print("║  Di 'Rodolfo pon [canción]' para poner música   ║")
-    print("║  Ctrl+C para salir                              ║")
-    print("╚══════════════════════════════════════════════════╝")
+    print("╔════════════════════════════════════════════╗")
+    print("║           🎤  Rodo  — Companion            ║")
+    print("╠════════════════════════════════════════════╣")
+    print(f"║  Hola, {NOMBRE:<35s} ║")
+    print("║  Di 'Rodo pon [cancion]' para empezar      ║")
+    print("║  Ctrl+C para salir                         ║")
+    print("╚════════════════════════════════════════════╝")
     print()
 
     recognizer = sr.Recognizer()
 
-    # Detectar micrófono
     try:
         mic = sr.Microphone()
     except (OSError, AttributeError):
-        print("ERROR: No se detectó micrófono.")
-        print("Asegúrate de tener un mic conectado y permisos activados.")
+        print("ERROR: No se detecto microfono.")
+        print("Conecta un microfono y vuelve a abrir Rodo.")
         input("Presiona Enter para cerrar...")
         return
 
-    print("[INIT] Calibrando micrófono...")
+    print("[INIT] Calibrando microfono...")
     with mic as source:
         recognizer.adjust_for_ambient_noise(source, duration=1.5)
-    print("[INIT] ¡Listo! Empieza a hablar.\n")
+    print("[INIT] Listo! Empieza a hablar.\n")
 
-    print("Comandos de voz:")
-    print("  • Rodolfo pon despacito")
-    print("  • Rodolfo siguiente / pásala")
-    print("  • Rodolfo pausa / sigue")
-    print("  • Rodolfo qué está sonando")
-    print("  • Rodolfo para la música")
-    print()
-    print("  Tip: escribe 'config' + Enter para cambiar tu configuracion")
+    print("Ejemplos de comandos:")
+    print("  Rodo pon despacito")
+    print("  Rodo siguiente")
+    print("  Rodo pausa / sigue")
+    print("  Rodo que esta sonando")
+    print("  Rodo para la musica")
     print()
 
     last_activator_time = 0.0
-    ACTIVATOR_TIMEOUT = 6.0
+    ACTIVATOR_TIMEOUT   = 6.0   # segundos de ventana tras decir solo "Rodo"
 
     while True:
         try:
             with mic as source:
-                # Re-calibrar brevemente cada ciclo para adaptarse al ruido
                 recognizer.adjust_for_ambient_noise(source, duration=0.2)
                 _ov("listening")
                 print("[ESCUCHO] ", end="", flush=True)
-                audio = recognizer.listen(
-                    source,
-                    timeout=10,
-                    phrase_time_limit=7,
-                )
+                audio = recognizer.listen(source, timeout=10, phrase_time_limit=7)
 
-            # Transcribir con Google STT (rápido y gratis)
+            # Transcribir con Google STT
             _ov("processing")
             try:
                 old_timeout = socket.getdefaulttimeout()
                 socket.setdefaulttimeout(3.0)
                 try:
-                    text = recognizer.recognize_google(audio, language="es-ES")
-                    text = text.strip()
+                    text = recognizer.recognize_google(audio, language="es-ES").strip()
                 finally:
                     socket.setdefaulttimeout(old_timeout)
             except sr.UnknownValueError:
@@ -205,65 +172,61 @@ def main():
                 _ov("idle")
                 continue
             except sr.RequestError as e:
-                print(f"(error Google STT o lento: {e})")
+                print(f"(error STT: {e})")
                 _ov("error")
                 time.sleep(1)
                 continue
 
-            print(f"{text}")
+            print(text)
 
-            # ¿Tiene el activador "Rodolfo"?
+            # ¿Contiene el activador?
             contains_act = has_activator(text)
 
             if contains_act:
-                # Ver si solo dijo el activador o tiene contenido adicional
-                norm_text = normalize(text)
+                # Quitar el activador para ver qué queda
+                norm_text  = normalize(text)
                 clean_norm = norm_text
                 for name in ACTIVATOR_NAMES:
                     clean_norm = re.sub(rf"\b{name}\b", "", clean_norm)
                 clean_norm = clean_norm.strip()
 
-                has_content = len(clean_norm) > 0
-
-                if not has_content:
-                    # Dijo solo el activador (ej: "Rodolfo")
+                if not clean_norm:
+                    # Solo dijo "Rodo" — abrir ventana de 6s para el siguiente comando
                     last_activator_time = time.time()
-                    print(f"  └─ [ACTIVADOR] Esperando comando (ventana de {ACTIVATOR_TIMEOUT}s)...\n")
+                    print(f"  -> [ACTIVADOR] Escuchando comando ({ACTIVATOR_TIMEOUT:.0f}s)...\n")
                     continue
                 else:
-                    # Dijo activador con comando (ej: "Rodolfo pon despacito")
-                    last_activator_time = 0.0  # resetear ventana
+                    last_activator_time = 0.0
             else:
-                # No contiene activador, ver si la ventana de memoria está activa
+                # Sin activador — ¿hay ventana activa?
                 if time.time() - last_activator_time < ACTIVATOR_TIMEOUT:
-                    # Ventana activa: autocompletar con "Rodolfo"
-                    text = f"Rodolfo {text}"
-                    print(f"  └─ [COMPLETADO] → '{text}'")
-                    last_activator_time = 0.0  # usar y resetear
+                    text = f"Rodo {text}"
+                    print(f"  -> [COMPLETADO] -> '{text}'")
+                    last_activator_time = 0.0
                 else:
-                    # Ignorar y resetear ventana
-                    print(f"  └─ [IGNORADO] sin 'Rodolfo'\n")
+                    print(f"  -> [IGNORADO] di 'Rodo' primero\n")
                     last_activator_time = 0.0
                     continue
 
-            # ¡Comando detectado! Enviar (Discord o API directa según el modo)
-            destino = "API" if MODE == "api" else "Discord"
-            print(f"  └─ [ENVIANDO] → {destino}...", end=" ", flush=True)
+            # Enviar al servidor
+            print(f"  -> [ENVIANDO]...", end=" ", flush=True)
             _ov("sending")
-            if _send(text):
-                print("✅\n")
+            if send_command(text):
+                print("OK\n")
                 _ov("ok")
             else:
-                print("❌\n")
+                print("FALLO\n")
                 _ov("error")
 
         except sr.WaitTimeoutError:
             print("(silencio)")
             _ov("idle")
             continue
+
         except KeyboardInterrupt:
-            print("\n\n¡Hasta luego! 👋")
+            print("\n\nHasta luego!")
             break
+
         except Exception as e:
             print(f"\n[ERROR] {e}")
             _ov("error")

@@ -1,67 +1,76 @@
 ╔══════════════════════════════════════════════════════════════╗
-║              🎤  AMIGO DE RODOLFO  🎤                        ║
-║              Bot de música por voz para Discord              ║
+║                    🎤  RODO  🎤                               ║
+║             Asistente de música por voz                      ║
 ╚══════════════════════════════════════════════════════════════╝
 
 ¿Qué es esto?
 ─────────────
-Un programa que te deja controlar la música en Discord
-usando tu voz. Cuando dices "Rodolfo pon despacito", se
-manda al bot y reproduce la canción en el canal de voz
-donde esté el bot.
+Rodo es un asistente que controla la música con tu voz.
+Di "Rodo pon despacito" y la canción empieza a sonar
+en el canal de Discord donde esté el bot.
 
 NO necesitas:
-   ✗ Token de Discord
-   ✗ Permisos especiales
    ✗ Saber programar
+   ✗ Tocar ningún archivo de configuración
+   ✗ Ningún permiso especial de Discord
 
 SÍ necesitas:
    ✓ Micrófono (cualquiera)
    ✓ Internet
-   ✓ Windows con Python (te lo instala el script)
+   ✓ La dirección y contraseña del servidor (te la da el dueño)
 
 
-📋 PASOS PARA USAR (solo la PRIMERA vez):
+📋 PRIMEROS PASOS (solo la primera vez):
 ─────────────────────────────────────────
 1. Doble clic en "instalar.bat"
-   (Si no tienes Python, lo instala automáticamente)
+   Instala todo lo necesario automáticamente.
 
-2. Cuando termine, doble clic en "iniciar.bat"
-   Te va a preguntar:
-     • Tu nombre (lo verás como "🎤 TuNombre" en Discord)
-     • El URL del webhook (pídeselo al dueño del bot)
+2. Doble clic en "Rodo.bat"
+   Se abre una ventana de configuración donde pones:
+     • Tu apodo (como quieres que te llame Rodo)
+     • La dirección del servidor  ─┐ El dueño de Rodo
+     • La contraseña de acceso   ─┘ te las manda
 
-3. ¡Habla! Di cosas como:
-     • "Rodolfo pon despacito"
-     • "Rodolfo siguiente"
-     • "Rodolfo pausa"
-     • "Rodolfo qué está sonando"
+3. Clic en "Empezar" y ¡listo! Ya puedes hablar.
 
 
 🎮 DÍA A DÍA:
 ─────────────
-   Solo doble clic en "iniciar.bat" y a hablar.
+   Doble clic en "Rodo.bat" y empieza a hablar.
    Para cerrar: Ctrl+C o cierra la ventana.
+
+
+🗣 COMANDOS DE VOZ:
+───────────────────
+   "Rodo pon [canción o artista]"
+   "Rodo siguiente"
+   "Rodo pausa"
+   "Rodo sigue"
+   "Rodo para la música"
+   "Rodo qué está sonando"
+
+   Tip: puedes decir solo "Rodo" y esperar, después
+   di el comando sin repetir el nombre (tienes 6 segundos).
 
 
 ❓ PROBLEMAS COMUNES:
 ────────────────────
-"No detecta mi voz"
-  → Habla más cerca del mic
-  → Verifica que el mic correcto esté seleccionado
-    en Sonido de Windows
+"No me entiende"
+  → Habla más claro y di "Rodo" al principio
+  → Reduce el ruido de fondo
 
-"No reproduce nada en Discord"
-  → El dueño del bot tiene que tenerlo encendido
-  → Verifica que el webhook esté bien copiado
+"No reproduce nada"
+  → El servidor de Rodo tiene que estar encendido
+  → Verifica con el dueño que el bot esté activo
 
-"Python no se encuentra"
-  → Ejecuta instalar.bat primero
-  → Si falla, instala Python manualmente:
-    https://www.python.org/downloads/
-    (Marca "Add Python to PATH" al instalar)
+"Error de conexión"
+  → Verifica que la dirección del servidor sea correcta
+  → Puede que el servidor esté apagado temporalmente
+
+"Quiero cambiar mi apodo o la dirección"
+  → Abre Rodo.bat y escribe: config
 
 
 ╔══════════════════════════════════════════════════════════════╗
-║  Disfruta. Si algo no va, manda mensaje al dueño del bot.    ║
+║         Si algo no va, avísale al dueño de Rodo.            ║
 ╚══════════════════════════════════════════════════════════════╝
