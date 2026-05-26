@@ -215,6 +215,7 @@ class UpdateWindow:
                 f"@echo off\n"
                 f"timeout /t 2 /nobreak >nul\n"
                 f"copy /y \"{new_exe}\" \"{current}\"\n"
+                f"ie4uinit.exe -show\n"
                 f"start \"\" \"{current}\"\n"
                 f"del \"%~f0\"\n"
             )

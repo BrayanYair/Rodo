@@ -1,5 +1,5 @@
 {
-  "version": "1.0.3",
-  "download_url": "https://github.com/BrayanYair/Rodo/releases/download/v1.0.3/Rodo.exe",
-  "changelog": "Sin terminal al abrir. Icono del acceso directo corregido."
+  "version": "1.0.4",
+  "download_url": "https://github.com/BrayanYair/Rodo/releases/download/v1.0.4/Rodo.exe",
+  "changelog": "Icono del acceso directo se refresca automaticamente al actualizar."
 }
