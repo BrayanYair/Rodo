@@ -44,20 +44,6 @@ except ImportError:
     input("Presiona Enter para cerrar...")
     sys.exit(1)
 
-# Overlay visual de estado (opcional — si falla no importa)
-try:
-    from overlay import StatusOverlay as _OverlayClass
-    _overlay = _OverlayClass()
-    _overlay.start()
-except Exception:
-    _overlay = None
-
-def _ov(state: str):
-    if _overlay:
-        try: _overlay.set_state(state)
-        except Exception: pass
-
-
 # ─── Actualizaciones ─────────────────────────────────────────────────────────
 # Verificar antes de todo — si hay update, el usuario elige y el exe se reemplaza.
 try:
@@ -73,7 +59,7 @@ from setup_gui      import run_setup, run_reconfigure
 # Activadores de voz — "rodo" es el principal
 ACTIVATOR_NAMES = ("rodo", "rodolfo", "asistente")
 
-# Primera vez: setup visual automático
+# Primera vez: setup visual automático (SIN overlay activo aún — evita conflicto tkinter)
 if not config_exists():
     cfg = run_setup()
     if cfg is None:
@@ -81,6 +67,58 @@ if not config_exists():
         sys.exit(0)
 else:
     cfg = load_config()
+
+# ─── Acceso directo en el escritorio ─────────────────────────────────────────
+def _create_desktop_shortcut():
+    """Crea acceso directo de Rodo en el escritorio (solo la primera vez)."""
+    try:
+        if sys.platform != "win32" or not getattr(sys, "frozen", False):
+            return  # Solo aplica al exe en Windows
+        import subprocess
+        exe_path = sys.executable.replace("'", "''")
+        work_dir = os.path.dirname(sys.executable).replace("'", "''")
+        ps = f"""
+$Desktop = [Environment]::GetFolderPath('Desktop')
+$Link    = "$Desktop\\Rodo.lnk"
+if (-not (Test-Path $Link)) {{
+    $ws = New-Object -ComObject WScript.Shell
+    $sc = $ws.CreateShortcut($Link)
+    $sc.TargetPath       = '{exe_path}'
+    $sc.WorkingDirectory = '{work_dir}'
+    $sc.IconLocation     = '{exe_path},0'
+    $sc.Description      = 'Rodo - Asistente de voz'
+    $sc.Save()
+}}
+"""
+        subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", ps],
+            capture_output=True, timeout=10
+        )
+    except Exception:
+        pass  # No es crítico — sigue aunque falle
+
+_create_desktop_shortcut()
+
+# Overlay visual de estado — se inicia DESPUÉS del setup para no interferir con tkinter
+_overlay = None
+def _ov(state: str):
+    if _overlay:
+        try: _overlay.set_state(state)
+        except Exception: pass
+
+try:
+    from overlay import StatusOverlay as _OverlayClass
+    _overlay = _OverlayClass()
+    _overlay.start()
+except Exception:
+    pass
+
+# Ícono en la bandeja del sistema
+try:
+    from tray import start_tray
+    start_tray(overlay=_overlay)
+except Exception:
+    pass
 
 NOMBRE        = cfg.get("nombre",    "Amigo")
 BOT_API_URL   = cfg.get("api_url",   "").rstrip("/")

@@ -20,7 +20,7 @@ a = Analysis(
     ["amigo.py"],
     pathex=["."],
     binaries=sr_binaries,
-    datas=sr_datas,
+    datas=sr_datas + [("rodo_logo.ico", ".")],
     hiddenimports=sr_hidden + [
         # Audio
         "pyaudio",
@@ -44,19 +44,27 @@ a = Analysis(
         "threading",
         "socket",
         "subprocess",
+        # Bandeja del sistema
+        "pystray",
+        "pystray._win32",
+        "PIL",
+        "PIL.Image",
+        "PIL.IcoImagePlugin",
+        "PIL.PngImagePlugin",
         # Módulos locales (por si PyInstaller no los detecta)
         "overlay",
         "config_manager",
         "setup_gui",
         "updater",
         "version",
+        "tray",
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     # Excluir módulos pesados que no usamos
     excludes=[
-        "numpy", "scipy", "matplotlib", "PIL", "Pillow",
+        "numpy", "scipy", "matplotlib",
         "pandas", "cv2", "torch", "tensorflow",
         "whisper", "openai",
     ],
@@ -88,5 +96,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    # icon="rodo.ico",      # Descomentar cuando tengas el icono
+    icon="rodo_logo.ico",
 )
