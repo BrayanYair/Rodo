@@ -6,11 +6,13 @@ Seguridad: todos los endpoints requieren Authorization: Bearer <token>.
 El endpoint /health es público (para monitoreo).
 
 Tokens:
-  - API_TOKEN en .env → token único compartido (modo local / un solo usuario)
-  - Futuro: tokens por usuario en tokens.json
+  - API_TOKEN en .env → token maestro del dueño (admin, acceso total)
+  - tokens.json       → tokens individuales por usuario (amigos)
+  - Endpoints /admin/* solo aceptan el token maestro
 """
 
 import os
+import asyncio
 import secrets
 import logging
 from pathlib import Path
@@ -20,6 +22,7 @@ from dotenv import load_dotenv
 
 from modules.music.player import get_player
 from modules.music.cog    import get_target_guild, find_voice_channel
+import tokens as token_mgr
 
 load_dotenv()
 
@@ -32,8 +35,8 @@ logger = logging.getLogger("rodolfo.api")
 
 # ─── Seguridad ────────────────────────────────────────────────────────────────
 
-def _check_token() -> str:
-    """Devuelve el token activo. Si no hay uno configurado, genera uno temporal."""
+def _master_token() -> str:
+    """Devuelve el token maestro. Si no hay uno configurado, genera uno temporal."""
     global API_TOKEN
     if not API_TOKEN:
         API_TOKEN = secrets.token_urlsafe(32)
@@ -46,31 +49,61 @@ def _check_token() -> str:
     return API_TOKEN
 
 
+def _resolve_auth(auth_header: str) -> tuple[bool, str | None]:
+    """
+    Verifica el token del header Authorization.
+    Retorna (es_valido, nombre_usuario_o_None).
+    - Token maestro → válido, nombre=None (es el dueño)
+    - Token de usuario → válido, nombre=nombre_del_usuario
+    - Inválido → False, None
+    """
+    if not auth_header.startswith("Bearer "):
+        return False, None
+    token    = auth_header[7:].strip()
+    master   = _master_token()
+    if token == master:
+        return True, None   # dueño con acceso total
+    user_name = token_mgr.check_user_token(token)
+    if user_name:
+        return True, user_name
+    return False, None
+
+
 @web.middleware
 async def auth_middleware(request: web.Request, handler):
     """
     Valida el token en TODOS los endpoints excepto /health.
+    - /admin/* solo acepta el token maestro.
+    - El resto acepta token maestro O token de usuario.
     Registra los intentos fallidos para detectar accesos no autorizados.
     """
     if request.path == "/health":
         return await handler(request)
 
-    token    = _check_token()
-    auth     = request.headers.get("Authorization", "")
-    expected = f"Bearer {token}"
+    auth             = request.headers.get("Authorization", "")
+    valid, user_name = _resolve_auth(auth)
 
-    if auth != expected:
+    if not valid:
         client_ip = request.remote or "desconocida"
         logger.warning(
-            f"[AUTH] Acceso rechazado — IP: {client_ip} | "
-            f"path: {request.path} | "
-            f"token recibido: '{auth[:30]}...'" if len(auth) > 30 else
-            f"[AUTH] Acceso rechazado — IP: {client_ip} | path: {request.path}"
+            "[AUTH] Acceso rechazado — IP: %s | path: %s | token: '%s'",
+            client_ip, request.path, auth[:30],
         )
         return web.json_response(
-            {"error": "unauthorized", "hint": "Falta o es incorrecto el header Authorization: Bearer <token>"},
+            {"error": "unauthorized",
+             "hint":  "Falta o es incorrecto el header Authorization: Bearer <token>"},
             status=401,
         )
+
+    # /admin/* requiere token maestro (user_name == None)
+    if request.path.startswith("/admin/") and user_name is not None:
+        return web.json_response(
+            {"error": "forbidden", "hint": "Esta ruta requiere el token maestro"},
+            status=403,
+        )
+
+    # Guardar info del usuario en el request para los handlers
+    request["auth_user"] = user_name   # None = dueño, str = nombre amigo
     return await handler(request)
 
 
@@ -219,7 +252,10 @@ async def http_command(request: web.Request, bot) -> web.Response:
     """
     data      = await request.json()
     text      = (data.get("text") or "").strip()
-    user_name = (data.get("user") or "Amigo").strip()  # noqa: F841  (para futuros logs)
+    # Nombre del usuario: primero del token autenticado, si no del body
+    auth_user = request.get("auth_user")   # None = dueño con token maestro
+    user_name = auth_user or (data.get("user") or "Amigo").strip()
+    logger.info("[CMD] %s → '%s'", user_name, text[:60])
 
     if not text:
         return web.json_response({"error": "missing text"}, status=400)
@@ -246,8 +282,34 @@ async def http_command(request: web.Request, bot) -> web.Response:
         if not channel:
             return web.json_response({"error": "no hay canal de voz activo"}, status=400)
         try:
+            # ¿Estaba ya conectado antes de este comando?
+            was_connected = (
+                player.voice_client is not None
+                and player.voice_client.is_connected()
+            )
             await player.connect(channel)
+
+            # Si acaba de conectarse (no estaba antes), avisar y pedir que repitan
+            if not was_connected:
+                asyncio.ensure_future(player.say(
+                    f"Hola {user_name}, acabo de conectarme. "
+                    "No escuché bien tu canción, ¿podrías repetirla?"
+                ))
+                return web.json_response({
+                    "ok":     True,
+                    "action": action,
+                    "added":  [],
+                    "note":   "bot recién conectado — pide repetir",
+                })
+
             tracks, started_now = await player.add(query)
+            # TTS: Rodo anuncia la canción en voz alta
+            if tracks:
+                title = tracks[0]["title"]
+                if started_now:
+                    asyncio.ensure_future(player.say(f"Poniendo {title}"))
+                else:
+                    asyncio.ensure_future(player.say(f"Agregado a la cola: {title}"))
             return web.json_response({
                 "ok":          True,
                 "action":      action,
@@ -328,6 +390,97 @@ async def http_health(request: web.Request, bot) -> web.Response:
     })
 
 
+# ─── Endpoints de administración (solo token maestro) ────────────────────────
+
+async def http_admin_add_user(request: web.Request) -> web.Response:
+    """
+    Crea un nuevo usuario con token único.
+
+    Body: {"username": "brayan", "name": "Brayan"}
+    Retorna: {"ok": true, "token": "...", "username": "brayan", "name": "Brayan"}
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "JSON inválido"}, status=400)
+
+    username = (data.get("username") or "").strip().lower()
+    name     = (data.get("name")     or "").strip()
+
+    if not username:
+        return web.json_response({"error": "Falta 'username'"}, status=400)
+    if not name:
+        name = username.capitalize()
+
+    result = token_mgr.add_user(username, name)
+    logger.info("[ADMIN] Usuario añadido: %s (%s)", username, name)
+    return web.json_response({"ok": True, **result})
+
+
+async def http_admin_revoke_user(request: web.Request) -> web.Response:
+    """
+    Revoca el token de un usuario (ya no puede conectarse).
+
+    Body: {"username": "brayan"}
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "JSON inválido"}, status=400)
+
+    username = (data.get("username") or "").strip().lower()
+    if not username:
+        return web.json_response({"error": "Falta 'username'"}, status=400)
+
+    ok = token_mgr.revoke_user(username)
+    if not ok:
+        return web.json_response({"ok": False, "error": f"Usuario '{username}' no encontrado"}, status=404)
+    logger.info("[ADMIN] Usuario revocado: %s", username)
+    return web.json_response({"ok": True, "username": username, "status": "revocado"})
+
+
+async def http_admin_reactivate_user(request: web.Request) -> web.Response:
+    """
+    Reactiva un usuario previamente revocado (sin cambiar su token).
+
+    Body: {"username": "brayan"}
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "JSON inválido"}, status=400)
+
+    username = (data.get("username") or "").strip().lower()
+    if not username:
+        return web.json_response({"error": "Falta 'username'"}, status=400)
+
+    ok = token_mgr.reactivate_user(username)
+    if not ok:
+        return web.json_response({"ok": False, "error": f"Usuario '{username}' no encontrado"}, status=404)
+    return web.json_response({"ok": True, "username": username, "status": "activo"})
+
+
+async def http_admin_list_users(request: web.Request) -> web.Response:
+    """Lista todos los usuarios registrados (tokens parciales, sin exponer el token completo)."""
+    users = token_mgr.list_users()
+    return web.json_response({"ok": True, "count": len(users), "users": users})
+
+
+async def http_admin_get_token(request: web.Request) -> web.Response:
+    """
+    Devuelve el token COMPLETO de un usuario (para enviárselo).
+
+    Query param: ?username=brayan
+    """
+    username = request.rel_url.query.get("username", "").strip().lower()
+    if not username:
+        return web.json_response({"error": "Falta query param 'username'"}, status=400)
+    token = token_mgr.get_user_token(username)
+    if token is None:
+        return web.json_response({"error": f"Usuario '{username}' no encontrado o inactivo"}, status=404)
+    return web.json_response({"ok": True, "username": username, "token": token})
+
+
 # ─── Arranque del servidor HTTP ───────────────────────────────────────────────
 
 async def start_http(bot):
@@ -358,6 +511,13 @@ async def start_http(bot):
     app.router.add_post("/volume",      _volume)
     app.router.add_post("/clear_queue", _clear_queue)
     app.router.add_post("/remove_last", _remove_last)
+
+    # Admin — solo token maestro
+    app.router.add_post("/admin/add_user",         http_admin_add_user)
+    app.router.add_post("/admin/revoke_user",      http_admin_revoke_user)
+    app.router.add_post("/admin/reactivate_user",  http_admin_reactivate_user)
+    app.router.add_get( "/admin/users",            http_admin_list_users)
+    app.router.add_get( "/admin/get_token",        http_admin_get_token)
     app.router.add_post("/say",         _say)
     app.router.add_post("/command",     _command)   # ← modo API directa (amigos)
     app.router.add_get( "/status",      _status)
@@ -368,10 +528,12 @@ async def start_http(bot):
     site = web.TCPSite(runner, HTTP_HOST, HTTP_PORT)
     await site.start()
 
-    token  = _check_token()
+    token  = _master_token()
     local  = HTTP_HOST in ("127.0.0.1", "localhost")
     scope  = "solo local" if local else "⚠️  PÚBLICO — expuesto a internet"
     print(f"[HTTP] API en {HTTP_HOST}:{HTTP_PORT} ({scope})")
-    print(f"[HTTP] Auth: Bearer {token[:8]}...{token[-4:]}")
+    print(f"[HTTP] Token maestro: Bearer {token[:8]}...{token[-4:]}")
+    n_users = len(token_mgr.list_users())
+    print(f"[HTTP] Usuarios registrados: {n_users}")
     if not local:
         print(f"[HTTP] ADVERTENCIA: si vas a exponer esto, usa nginx + SSL")

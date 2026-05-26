@@ -44,10 +44,21 @@ YTDL_OPTIONS = {
     "noplaylist":     True,
     "quiet":          True,
     "no_warnings":    True,
-    "default_search": "ytsearch",
     "source_address": "0.0.0.0",
 }
 ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
+
+_URL_RE = re.compile(r"^https?://")
+
+def _build_search_query(query: str) -> str:
+    """
+    URLs directas → sin cambios.
+    Texto → busca en YouTube Music (solo canciones, sin vlogs ni noticias).
+    Fallback: si ytmsearch falla, retorna ytsearch5 para el reintento.
+    """
+    if _URL_RE.match(query):
+        return query                      # URL de YouTube / Spotify / etc.
+    return f"ytmsearch5:{query}"          # YouTube Music — solo música
 
 # ─── Query log ─────────────────────────────────────────────────────────────────
 _QUERY_LOG = Path(__file__).parent.parent.parent / "query_log.jsonl"
@@ -69,15 +80,37 @@ def _log_query(query: str, result_title: str, result_url: str, source: str = "se
 
 # ─── Búsqueda ──────────────────────────────────────────────────────────────────
 async def yt_search(query: str, log: bool = True) -> dict:
-    """Busca en YouTube y devuelve un track dict. log=False para evitar ruido en el log."""
-    def _extract():
-        info = ytdl.extract_info(query, download=False)
+    """
+    Busca en YouTube Music (texto) o resuelve una URL directa.
+    Itera los resultados para saltar videos no disponibles.
+    Fallback a ytsearch si ytmsearch no da resultados.
+    """
+    search_query = _build_search_query(query)
+
+    def _extract(q: str):
+        info = ytdl.extract_info(q, download=False)
         if "entries" in info and info["entries"]:
-            info = info["entries"][0]
+            for entry in info["entries"]:
+                if not entry:
+                    continue
+                availability = entry.get("availability", "")
+                if availability in ("private", "premium_only", "subscriber_only"):
+                    continue
+                if entry.get("url") or entry.get("formats"):
+                    return entry
+            return info["entries"][0]   # fallback: primer resultado
         return info
 
     loop = asyncio.get_event_loop()
-    info = await loop.run_in_executor(None, _extract)
+
+    try:
+        info = await loop.run_in_executor(None, _extract, search_query)
+    except Exception:
+        # Si YouTube Music falla, reintenta con YouTube normal
+        fallback = f"ytsearch5:{query}" if not _URL_RE.match(query) else query
+        print(f"[SEARCH] ytmsearch falló, reintentando con ytsearch: {query[:40]}")
+        info = await loop.run_in_executor(None, _extract, fallback)
+
     track = {
         "url":         info["url"],
         "title":       info.get("title", "Unknown"),

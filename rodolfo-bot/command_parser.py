@@ -145,12 +145,32 @@ def parse_music(cmd: str):
     ]):
         return {"action": "clear_queue"}
 
-    # Disconnect
+    # Disconnect del canal de voz
     if any(w in cmd for w in [
         "sal del canal", "sal de la voz", "vete del canal",
         "desconectate", "desconecta bot",
+        "salte de discord", "salte del discord", "sal de discord",
+        "hasta luego", "chau", "chao", "adios", "nos vemos",
+        "cierra discord", "sal ya",
     ]):
         return {"action": "disconnect_music"}
+
+    # Ocultar overlay (se maneja localmente en Rodo.exe, no va al bot)
+    if any(w in cmd for w in [
+        "ocultate", "oculta", "escondete", "esconde",
+        "sal de mi pantalla", "sal de la pantalla", "quitate de la pantalla",
+        "quitate", "desaparece", "vete de la pantalla",
+        "no te veo", "escondete de mi pantalla",
+    ]):
+        return {"action": "hide_overlay"}
+
+    # Mostrar overlay
+    if any(w in cmd for w in [
+        "muestrate", "muestra", "aparece", "donde estas",
+        "donde te fuiste", "vuelve a aparecer", "aparece en pantalla",
+        "sal", "asomarte", "asomarte",
+    ]):
+        return {"action": "show_overlay"}
 
     # Ayuda / Comandos
     if any(w in cmd for w in [

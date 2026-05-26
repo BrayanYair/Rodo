@@ -223,7 +223,34 @@ def main():
                     last_activator_time = 0.0
                     continue
 
-            # Enviar al servidor
+            # ── Comandos locales (no van al servidor) ────────────────────────
+            norm_cmd = normalize(text)
+            # Quitar activador para revisar el comando limpio
+            for name in ACTIVATOR_NAMES:
+                norm_cmd = re.sub(rf"\b{name}\b", "", norm_cmd).strip()
+
+            if any(w in norm_cmd for w in [
+                "ocultate", "oculta", "escondete", "esconde",
+                "sal de mi pantalla", "sal de la pantalla",
+                "quitate de la pantalla", "quitate", "desaparece",
+                "vete de la pantalla",
+            ]):
+                print("  -> [LOCAL] Ocultando overlay\n")
+                if _overlay: _overlay.hide()
+                _ov("idle")
+                continue
+
+            if any(w in norm_cmd for w in [
+                "muestrate", "muestra", "aparece", "donde estas",
+                "donde te fuiste", "vuelve a aparecer",
+                "aparece en pantalla",
+            ]):
+                print("  -> [LOCAL] Mostrando overlay\n")
+                if _overlay: _overlay.show()
+                _ov("ok")
+                continue
+
+            # ── Enviar al servidor ────────────────────────────────────────────
             print(f"  -> [ENVIANDO]...", end=" ", flush=True)
             _ov("sending")
             if send_command(text):

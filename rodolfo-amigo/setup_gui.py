@@ -74,7 +74,7 @@ def run_setup(prefill: dict | None = None) -> dict | None:
     root.title("Rodo — Configuración")
     root.configure(bg=BG)
     root.resizable(False, False)
-    _center(root, 440, 490)
+    _center(root, 440, 560)
 
     # ── Header ────────────────────────────────────────────────────────────────
     tk.Label(root, text="🎤  Rodo", bg=BG, fg=ACCENT,

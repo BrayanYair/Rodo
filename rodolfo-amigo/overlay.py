@@ -83,6 +83,16 @@ class StatusOverlay:
     def start(self):
         self._thread.start()
 
+    def hide(self):
+        """Oculta el overlay (por comando de voz)."""
+        if self._root:
+            self._root.after(0, self._root.withdraw)
+
+    def show(self):
+        """Muestra el overlay (por comando de voz)."""
+        if self._root:
+            self._root.after(0, self._root.deiconify)
+
     def set_state(self, state: str):
         """Cambia el estado (thread-safe).
         Los estados pulsantes se mantienen hasta que se cambie a otro.
@@ -146,9 +156,15 @@ class StatusOverlay:
             w.bind("<ButtonPress-1>",   self._drag_start)
             w.bind("<B1-Motion>",       self._drag_move)
             w.bind("<ButtonRelease-1>", self._drag_end)
+            w.bind("<Button-3>",        self._show_menu)
 
-        root.bind("<Double-Button-3>", lambda _e: root.withdraw())
-        root.bind("<Button-3>",        lambda _e: root.deiconify())
+        # Menú contextual (click derecho)
+        self._menu = tk.Menu(root, tearoff=0, bg="#1a1a2e", fg="#e2e8f0",
+                             activebackground="#7c6af7", activeforeground="white",
+                             font=("Segoe UI", 9), bd=0)
+        self._menu.add_command(label="Ocultar",      command=root.withdraw)
+        self._menu.add_separator()
+        self._menu.add_command(label="Cerrar Rodo",  command=self._quit)
 
         x, y = self._pos
         root.geometry(f"{_DOT_W}x{_DOT_H}+{x}+{y}")
@@ -218,3 +234,14 @@ class StatusOverlay:
         x = self._root.winfo_x()
         y = self._root.winfo_y()
         self._save_pos(x, y)
+
+    def _show_menu(self, event):
+        try:
+            self._menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self._menu.grab_release()
+
+    def _quit(self):
+        import os
+        self._save_pos(self._root.winfo_x(), self._root.winfo_y())
+        os._exit(0)

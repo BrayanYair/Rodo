@@ -16,6 +16,10 @@ from pathlib import Path
 
 
 def _config_dir() -> Path:
+    # Cuando corre como .exe de PyInstaller, guardar junto al exe
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
+    # En desarrollo: AppData/Local/Rodo
     if sys.platform == "win32":
         base = Path.home() / "AppData" / "Local"
     elif sys.platform == "darwin":

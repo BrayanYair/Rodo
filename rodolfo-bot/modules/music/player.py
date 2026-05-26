@@ -225,20 +225,23 @@ class MusicPlayer:
 
     async def add(self, query: str):
         tracks = await resolve_query(query)
+        # voice_busy = bot conectado Y reproduciendo/pausado activamente
         voice_busy = (
             self.voice_client is not None
             and self.voice_client.is_connected()
             and (self.voice_client.is_playing() or self.voice_client.is_paused())
         )
-        was_idle = not voice_busy and len(self.queue) == 0
-        if was_idle:
+        # Iniciar reproducción si: no está ocupado (aunque haya cola vieja)
+        should_start = not voice_busy
+        if should_start:
             self.current = None
         for t in tracks:
             self.queue.append(t)
-        if was_idle and self.queue:
+        if should_start and self.queue:
             await self._play_track(self.queue.popleft())
-        print(f"[ADD] query='{query[:40]}' was_idle={was_idle} queue={len(self.queue)}")
-        return tracks, was_idle
+        started_now = should_start
+        print(f"[ADD] query='{query[:40]}' started_now={started_now} queue={len(self.queue)}")
+        return tracks, started_now
 
     # ─── Controles ─────────────────────────────────────────────────────────────
 
