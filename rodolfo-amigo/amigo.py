@@ -88,11 +88,13 @@ if (-not (Test-Path $Link)) {{
     $sc.IconLocation     = '{exe_path},0'
     $sc.Description      = 'Rodo - Asistente de voz'
     $sc.Save()
+    ie4uinit.exe -show
 }}
 """
         subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", ps],
-            capture_output=True, timeout=10
+            capture_output=True, timeout=10,
+            creationflags=subprocess.CREATE_NO_WINDOW,  # Sin terminal visible
         )
     except Exception:
         pass  # No es crítico — sigue aunque falle

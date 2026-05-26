@@ -1,5 +1,5 @@
 {
-  "version": "1.0.2",
-  "download_url": "https://github.com/BrayanYair/Rodo/releases/download/v1.0.2/Rodo.exe",
-  "changelog": "Acceso directo en el escritorio creado automaticamente."
+  "version": "1.0.3",
+  "download_url": "https://github.com/BrayanYair/Rodo/releases/download/v1.0.3/Rodo.exe",
+  "changelog": "Sin terminal al abrir. Icono del acceso directo corregido."
 }
