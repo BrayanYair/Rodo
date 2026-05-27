@@ -57,7 +57,7 @@ from config_manager import config_exists, load_config
 from setup_gui      import run_setup, run_reconfigure
 
 # Activadores de voz — "rodo" es el principal
-ACTIVATOR_NAMES = ("rodo", "rodolfo", "asistente")
+ACTIVATOR_NAMES = ("rodo",)
 
 # Primera vez: setup visual automático (SIN overlay activo aún — evita conflicto tkinter)
 if not config_exists():
@@ -141,6 +141,28 @@ except Exception:
 NOMBRE        = cfg.get("nombre",    "Amigo")
 BOT_API_URL   = cfg.get("api_url",   "").rstrip("/")
 BOT_API_TOKEN = cfg.get("api_token", "")
+
+# ─── Log de voz ──────────────────────────────────────────────────────────────
+import logging
+from datetime import datetime
+
+_LOG_DIR  = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Rodo")
+_LOG_FILE = os.path.join(_LOG_DIR, "rodo_voice.log")
+os.makedirs(_LOG_DIR, exist_ok=True)
+
+logging.basicConfig(
+    filename=_LOG_FILE,
+    level=logging.DEBUG,
+    format="%(asctime)s %(message)s",
+    datefmt="%H:%M:%S",
+    encoding="utf-8",
+)
+_vlog = logging.getLogger("rodo.voice")
+
+def vlog(msg: str):
+    """Log de voz — va al archivo y a la consola."""
+    print(msg)
+    _vlog.info(msg)
 
 
 # ─── Envío al servidor ────────────────────────────────────────────────────────
@@ -239,16 +261,16 @@ def main():
                 finally:
                     socket.setdefaulttimeout(old_timeout)
             except sr.UnknownValueError:
-                print("(nada)")
+                vlog("(nada — STT no entendió)")
                 _ov("idle")
                 continue
             except sr.RequestError as e:
-                print(f"(error STT: {e})")
+                vlog(f"(error STT: {e})")
                 _ov("error")
                 time.sleep(1)
                 continue
 
-            print(text)
+            vlog(f"[ESCUCHÉ] '{text}'")
 
             # ¿Contiene el activador?
             contains_act = has_activator(text)
@@ -264,7 +286,7 @@ def main():
                 if not clean_norm:
                     # Solo dijo "Rodo" — abrir ventana de 6s para el siguiente comando
                     last_activator_time = time.time()
-                    print(f"  -> [ACTIVADOR] Escuchando comando ({ACTIVATOR_TIMEOUT:.0f}s)...\n")
+                    vlog(f"  -> [ACTIVADOR] Escuchando comando ({ACTIVATOR_TIMEOUT:.0f}s)...")
                     continue
                 else:
                     last_activator_time = 0.0
@@ -272,10 +294,10 @@ def main():
                 # Sin activador — ¿hay ventana activa?
                 if time.time() - last_activator_time < ACTIVATOR_TIMEOUT:
                     text = f"Rodo {text}"
-                    print(f"  -> [COMPLETADO] -> '{text}'")
+                    vlog(f"  -> [VENTANA] completado → '{text}'")
                     last_activator_time = 0.0
                 else:
-                    print(f"  -> [IGNORADO] di 'Rodo' primero\n")
+                    vlog(f"  -> [IGNORADO] sin activador (STT escuchó pero no dijo 'rodo')")
                     last_activator_time = 0.0
                     continue
 
@@ -307,13 +329,13 @@ def main():
                 continue
 
             # ── Enviar al servidor ────────────────────────────────────────────
-            print(f"  -> [ENVIANDO]...", end=" ", flush=True)
+            vlog(f"  -> [ENVIANDO] '{text}'")
             _ov("sending")
             if send_command(text):
-                print("OK\n")
+                vlog("  -> [OK] comando enviado\n")
                 _ov("ok")
             else:
-                print("FALLO\n")
+                vlog("  -> [FALLO] no se pudo enviar al servidor\n")
                 _ov("error")
 
         except sr.WaitTimeoutError:

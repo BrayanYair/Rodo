@@ -1,5 +1,5 @@
 {
-  "version": "1.0.6",
-  "download_url": "https://github.com/BrayanYair/Rodo/releases/download/v1.0.6/Rodo.exe",
-  "changelog": "Rodo ahora instala sus archivos en AppData para mayor estabilidad."
+  "version": "1.0.7",
+  "download_url": "https://github.com/BrayanYair/Rodo/releases/download/v1.0.7/Rodo.exe",
+  "changelog": "Log de voz para diagnostico. Busqueda de musica mas rapida."
 }
