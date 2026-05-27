@@ -99,6 +99,22 @@ if (-not (Test-Path $Link)) {{
     except Exception:
         pass  # No es crítico — sigue aunque falle
 
+def _cleanup_stale_meipass():
+    """Elimina carpetas _MEI* viejas de PyInstaller en %TEMP% para evitar conflictos."""
+    if not getattr(sys, "frozen", False):
+        return
+    try:
+        import glob
+        import shutil
+        current   = os.path.abspath(sys._MEIPASS)
+        temp_base = os.path.dirname(current)
+        for folder in glob.glob(os.path.join(temp_base, "_MEI*")):
+            if os.path.abspath(folder) != current:
+                shutil.rmtree(folder, ignore_errors=True)
+    except Exception:
+        pass
+
+_cleanup_stale_meipass()
 _create_desktop_shortcut()
 
 # Overlay visual de estado — se inicia DESPUÉS del setup para no interferir con tkinter
