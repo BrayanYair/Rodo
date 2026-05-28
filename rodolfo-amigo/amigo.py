@@ -1176,6 +1176,12 @@ def main():
         try:
             with mic as source:
                 recognizer.adjust_for_ambient_noise(source, duration=0.2)
+                # Si hay ruido de fondo (música de Discord, TV, etc.) el umbral sube
+                # tanto que Rodo deja de detectar la voz del usuario.
+                # Lo capeamos en 3 500 — suficiente para ignorar silencio de fondo,
+                # sin que una canción en los parlantes apague el micrófono.
+                if recognizer.energy_threshold > 3500:
+                    recognizer.energy_threshold = 3500
                 _ov("listening")
                 print("[ESCUCHO] ", end="", flush=True)
                 audio = recognizer.listen(source, timeout=10, phrase_time_limit=7)
@@ -1212,9 +1218,6 @@ def main():
             contains_act = has_activator(text)
 
             if contains_act:
-                # Chime inmediato — feedback antes de que empiece cualquier procesamiento
-                _chime_bg()
-
                 # Quitar el activador para ver qué queda
                 norm_text  = normalize(text)
                 clean_norm = norm_text
@@ -1224,6 +1227,8 @@ def main():
 
                 if not clean_norm:
                     # Solo dijo "Rodo" — abrir ventana de 6s para el siguiente comando
+                    # "dime" le indica al usuario que Rodo está esperando el comando
+                    _speak_local_bg("dime")
                     last_activator_time = time.time()
                     vlog(f"  -> [ACTIVADOR] Escuchando comando ({ACTIVATOR_TIMEOUT:.0f}s)...")
                     continue
@@ -1476,6 +1481,7 @@ def main():
                 if result.get("ok"):
                     vlog("  -> [OK] comando enviado\n")
                     _ov("ok")
+                    _speak_local_bg("lo tengo")   # confirmación de envío al bot
                     if result.get("need_spotify_auth"):
                         vlog("  -> [SPOTIFY_OAUTH] Servidor indica que falta Spotify - iniciando flujo\n")
                         threading.Thread(target=_spotify_oauth_flow, daemon=True).start()

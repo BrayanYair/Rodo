@@ -173,7 +173,9 @@ def _parse_artist_from_query(query: str) -> tuple[str, str | None]:
     Detecta patrones como "flaca de calamaro" o "flaca por calamaro"
     y devuelve (track_query, artist) para búsqueda más precisa en Spotify.
     """
-    m = re.match(r"^(.+?)\s+(?:de|del|por|from)\s+(.+)$", query, re.IGNORECASE)
+    # Greedy .+ para tomar el ÚLTIMO separador: "ropa de bazar de kevin kaarl"
+    # → track="ropa de bazar", artist="kevin kaarl"  (no "ropa" + "bazar de kevin kaarl")
+    m = re.match(r"^(.+)\s+(?:de|del|por|from|y)\s+(.+)$", query, re.IGNORECASE)
     if m:
         return m.group(1).strip(), m.group(2).strip()
     return query, None

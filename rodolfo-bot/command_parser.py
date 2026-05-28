@@ -55,8 +55,9 @@ def fix_common_stt_errors(cmd: str) -> str:
     cmd = re.sub(r"\bpomp[oó]n\b", "pon", cmd)
     cmd = re.sub(r"\bpompom\b", "pon", cmd)
     cmd = re.sub(r"\bpun\b",   "pon", cmd)
-    cmd = re.sub(r"\bstock\b", "stop", cmd)
-    cmd = re.sub(r"\bskype\b", "skip", cmd)
+    cmd = re.sub(r"\bstock\b",   "stop", cmd)
+    cmd = re.sub(r"\bdetente\b", "deten", cmd)  # "detente" → "deten" (stop)
+    cmd = re.sub(r"\bskype\b",   "skip", cmd)
     # STT confunde el activador "rodo" con palabras similares
     cmd = re.sub(r"\bfrodo\b",   "rodo", cmd)
     cmd = re.sub(r"\brodolfo\b", "rodo", cmd)  # "Rodo" → STT → "Rodolfo"
@@ -282,6 +283,19 @@ def parse_music(cmd: str):
                     res["spotify_type"] = spotify_type
                 return res
             return {"action": "play_music"}
+
+    # Verbo de música embebido en el medio del comando (STT agrega ruido al inicio)
+    # Ej: "un condenado pon el millon de paulo londra" → extrae "pon el millon de paulo londra"
+    # Ej: "no reproduce flaca de andres calamaro"     → extrae "reproduce flaca de andres calamaro"
+    _embedded = re.search(
+        r"\b(ponme|pon|pone|reproduce(?:me)?|coloca(?:me)?)\b\s+(.+)",
+        cmd,
+    )
+    if _embedded:
+        sub_cmd = f"{_embedded.group(1)} {_embedded.group(2).strip()}"
+        result = parse_music(sub_cmd)
+        if result and result.get("action") in ("play_music", "queue_music") and result.get("query"):
+            return result
 
     return None
 
