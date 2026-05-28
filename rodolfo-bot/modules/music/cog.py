@@ -21,6 +21,8 @@ import responses as R
 
 from .player   import get_player, MusicPlayer
 from .sink     import LiveTranscriptionSink, transcribe_pcm, HAS_NUMPY, HAS_SR
+from .cache    import cleanup_expired, maybe_pre_refresh_hot_tracks, get_stats_summary
+from .search   import yt_search
 
 load_dotenv()
 
@@ -122,8 +124,50 @@ class MusicCog(commands.Cog, name="Música"):
     @commands.Cog.listener()
     async def on_ready(self):
         print(f"[MÚSICA] Módulo listo.")
+        # Limpieza inicial de TTLs expirados
+        try:
+            loop = asyncio.get_event_loop()
+            loop.run_in_executor(None, cleanup_expired)
+        except Exception as e:
+            print(f"[CACHE] Error al iniciar limpieza: {e}")
+        # Iniciar tarea de pre-refresh periódico de hot tracks (cada 30 min)
+        asyncio.ensure_future(self._hot_refresh_loop())
         if VOICE_MSG_ENABLED:
             print(f"[VOICE-MSG] ✅ Notas de voz activadas (Whisper {WHISPER_MODEL}).")
+
+    # ── Pre-refresh periódico de hot tracks ────────────────────────────────────
+
+    async def _hot_refresh_loop(self):
+        """
+        Tarea de fondo que corre cada 30 minutos y pre-refresca los stream_urls
+        de tracks populares (usage_count >= 50) antes de que expiren.
+
+        Esto garantiza que los tracks más pedidos siempre tengan URL lista,
+        eliminando el L3 refresh en el momento de la reproducción.
+        """
+        PRE_REFRESH_INTERVAL = 30 * 60   # 30 minutos
+        PRE_REFRESH_MIN_USAGE = 50        # Solo tracks con >= 50 usos
+        await asyncio.sleep(60)           # Esperar 1 min después del arranque
+        while True:
+            try:
+                print("[HOT-REFRESH] Iniciando pre-refresh de tracks populares...")
+                await maybe_pre_refresh_hot_tracks(
+                    yt_search_fn=yt_search,
+                    min_usage=PRE_REFRESH_MIN_USAGE,
+                    ttl_margin=1800,       # Refrescar si expiran en < 30 min
+                )
+                # Imprimir reporte de hit ratio
+                stats = get_stats_summary(hours=1)
+                live = stats.get("live_ratio", {})
+                if live.get("total", 0) > 0:
+                    l1 = live.get("CACHE_L1_HIT", {}).get("pct", 0)
+                    l2 = live.get("CACHE_L2_HIT", {}).get("pct", 0)
+                    miss = live.get("CACHE_MISS", {}).get("pct", 0)
+                    print(f"[CACHE STATS] L1={l1}% L2={l2}% MISS={miss}%"
+                          + (f" | ⚠️ {live['alerta']}" if "alerta" in live else ""))
+            except Exception as e:
+                print(f"[HOT-REFRESH] Error: {e}")
+            await asyncio.sleep(PRE_REFRESH_INTERVAL)
 
     # ── Voice receive: conectar el sink cuando el bot entra al canal ───────────
 
@@ -216,6 +260,7 @@ class MusicCog(commands.Cog, name="Música"):
                     query,
                     shuffle=parsed.get("shuffle", False),
                     spotify_type=parsed.get("spotify_type"),
+                    user_key=who or "owner",
                 )
                 if tracks:
                     title  = tracks[0]["title"][:60]
@@ -237,6 +282,7 @@ class MusicCog(commands.Cog, name="Música"):
                     query,
                     shuffle=parsed.get("shuffle", False),
                     spotify_type=parsed.get("spotify_type"),
+                    user_key=who or "owner",
                 )
                 if tracks:
                     title = tracks[0]["title"][:60]
@@ -476,7 +522,7 @@ class MusicCog(commands.Cog, name="Música"):
             return
         player = get_player(ctx.guild.id)
         await player.connect(ctx.author.voice.channel)
-        tracks, started_now = await player.add(query)
+        tracks, started_now = await player.add(query, user_key=ctx.author.name)
         titles = ", ".join(t["title"] for t in tracks[:3])
         extra  = f" (+{len(tracks)-3})" if len(tracks) > 3 else ""
         prefix = "🎵 Sonando" if started_now else "📋 En cola"
@@ -529,7 +575,7 @@ class MusicCog(commands.Cog, name="Música"):
         await ctx.defer()
         player = get_player(ctx.guild.id)
         await player.connect(ctx.author.voice.channel)
-        tracks, started_now = await player.add(query)
+        tracks, started_now = await player.add(query, user_key=ctx.author.name)
         titles = ", ".join(t["title"] for t in tracks[:3])
         extra  = f" (+{len(tracks)-3})" if len(tracks) > 3 else ""
         prefix = "🎵 Sonando" if started_now else "📋 En cola"

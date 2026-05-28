@@ -10,6 +10,8 @@
 *.jsonl
 *.log
 overlay_pos.json
+# Base de datos de caché musical (runtime, se regenera automáticamente)
+rodolfo-bot/data/music_cache.db
 
 # ─── Python ───────────────────────────────────────────────────────────────────
 __pycache__/

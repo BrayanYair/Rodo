@@ -294,6 +294,7 @@ async def http_command(request: web.Request, bot) -> web.Response:
                 shuffle=parsed.get("shuffle", False),
                 spotify_type=spotify_type,
                 user_token=user_token,
+                user_key=user_key,
             )
             if tracks:
                 title = tracks[0]["title"]

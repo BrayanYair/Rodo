@@ -13,6 +13,22 @@ from pathlib import Path
 
 import yt_dlp
 from dotenv import load_dotenv
+from .cache import (
+    normalize_query,
+    get_best_cached_query,
+    get_cached_query,       # alias retrocompatible
+    save_query,
+    get_track,
+    save_track,
+    refresh_stream_url,
+    extract_track_key,
+    log_stat,
+    cleanup_expired,
+    SOURCE_SCORES,
+    CONFIDENCE_HIGH,
+    CONFIDENCE_LOW,
+    should_trust_cache,
+)
 
 load_dotenv()
 
@@ -203,8 +219,65 @@ async def _spotify_refine(query: str) -> str | None:
         return None
 
 
-async def resolve_query(query: str) -> list:
-    """Devuelve lista de tracks. Las URLs de Spotify pueden expandirse a varias canciones."""
+async def resolve_query(query: str, user_key: str = "owner") -> list:
+    """Devuelve lista de tracks. Las URLs de Spotify pueden expandirse a varias canciones.
+    Integra caché SQLite de nivel L1/L2/L3.
+    """
+    t_start = time.time()
+    # Identificar si es URL directa de YouTube o Spotify
+    is_url = bool(_URL_RE.match(query)) or bool(SPOTIFY_URL_RE.search(query))
+    
+    # ── L1 / L2 Cache Lookup (Solo para queries textuales) ─────────────────────
+    if not is_url:
+        norm_q = normalize_query(query)
+        cached = get_best_cached_query(user_key, norm_q)
+        if cached:
+            now = int(time.time())
+            final_conf    = cached.get("_final_confidence", 0.70)
+            conf_is_low   = cached.get("_confidence_low", False)
+
+            # Si stream_url válido (L1 Hit)
+            if (cached.get("stream_url")
+                    and cached.get("stream_expires_at")
+                    and cached["stream_expires_at"] > now + 60
+                    and not cached.get("stream_invalid")):
+
+                latency = int((time.time() - t_start) * 1000)
+                log_stat("CACHE_L1_HIT", query, "L1", latency)
+                conf_tag = f" [conf={final_conf:.2f}{'  low' if conf_is_low else ''}]"
+                print(f"[CACHE] L1 Hit '{query}' ({user_key}) → '{cached['title']}' {latency}ms{conf_tag}")
+                track = {
+                    "url":          cached["stream_url"],
+                    "title":        cached["title"],
+                    "webpage_url":  cached["webpage_url"],
+                    "duration":     cached["duration"],
+                    "_resolved_at": cached["last_stream_refresh"] or now,
+                    "_confidence":  final_conf,
+                }
+                if not conf_is_low:
+                    return [track]
+                
+                print(f"[CACHE CONF] Usando L1 low-confidence mientras se busca mejor candidato")
+                # Fallthrough a búsqueda para intentar mejorar (conf_is_low=True)
+
+            else:
+                # stream_url expirado o inválido pero tenemos webpage_url (L2 Hit)
+                print(f"[CACHE] L2 Hit '{query}' ({user_key}) → '{cached['title']}' (stream expirado)")
+                try:
+                    refreshed = await yt_search(cached["webpage_url"], log=False, fast=True)
+                    expires = int(refreshed["_resolved_at"] + 4 * 3600)
+                    refresh_stream_url(cached["track_key"], refreshed["url"], expires)
+                    latency = int((time.time() - t_start) * 1000)
+                    log_stat("CACHE_L2_HIT", query, "L2", latency)
+                    refreshed["_confidence"] = final_conf
+                    print(f"[CACHE] Stream refrescado '{cached['title']}' en {latency}ms [conf={final_conf:.2f}]")
+                    if not conf_is_low:
+                        return [refreshed]
+                except Exception as e:
+                    print(f"[CACHE] Error refrescando stream de '{cached['webpage_url']}': {e}. Fallback a búsqueda completa.")
+
+    # ── Cache Miss / Búsqueda tradicional ────────────────────────────────────
+    tracks = []
     if sp:
         # ── URL de Spotify ────────────────────────────────────────────────────
         m = SPOTIFY_URL_RE.search(query)
@@ -215,8 +288,9 @@ async def resolve_query(query: str) -> list:
                     t = sp.track(sid)
                     q = f"{t['name']} {t['artists'][0]['name']}"
                     track = await yt_search(q, log=False)
+                    track["_source_score"] = SOURCE_SCORES["spotify_url"]
                     _log_query(q, track["title"], track["webpage_url"], source="spotify")
-                    return [track]
+                    tracks = [track]
                 elif kind == "playlist":
                     items = sp.playlist_tracks(sid)["items"]
                     sem   = asyncio.Semaphore(5)
@@ -229,6 +303,7 @@ async def resolve_query(query: str) -> list:
                         try:
                             async with _sem:
                                 t2 = await yt_search(q, log=False)
+                            t2["_source_score"] = SOURCE_SCORES["spotify_url"]
                             _log_query(q, t2["title"], t2["webpage_url"], source="spotify")
                             return t2
                         except Exception as e:
@@ -236,7 +311,7 @@ async def resolve_query(query: str) -> list:
                             return None
 
                     results = await asyncio.gather(*[_fetch_pl(it) for it in items[:30]])
-                    return [t for t in results if t]
+                    tracks = [t for t in results if t]
 
                 elif kind == "album":
                     items = sp.album_tracks(sid)["items"]
@@ -247,6 +322,7 @@ async def resolve_query(query: str) -> list:
                         try:
                             async with _sem:
                                 t2 = await yt_search(q, log=False)
+                            t2["_source_score"] = SOURCE_SCORES["spotify_url"]
                             _log_query(q, t2["title"], t2["webpage_url"], source="spotify")
                             return t2
                         except Exception as e:
@@ -254,24 +330,61 @@ async def resolve_query(query: str) -> list:
                             return None
 
                     results = await asyncio.gather(*[_fetch_al(t) for t in items[:30]])
-                    return [t for t in results if t]
+                    tracks = [t for t in results if t]
             except Exception as e:
                 print(f"[SPOTIFY] Error resolviendo URL: {e}")
 
         # ── Texto libre → refinar con Spotify primero ─────────────────────────
-        if not _URL_RE.match(query):
-            import time
+        if not tracks and not _URL_RE.match(query):
             ts = time.time()
             refined = await _spotify_refine(query)
             print(f"[TIMING] Spotify refine: {time.time()-ts:.2f}s")
             if refined:
                 ts2 = time.time()
-                track = await yt_search(refined, log=False, fast=True)  # fast: ya viene de Spotify
+                track = await yt_search(refined, log=False, fast=True)
+                track["_source_score"] = SOURCE_SCORES["spotify_refine"]
                 print(f"[TIMING] YouTube search: {time.time()-ts2:.2f}s")
                 _log_query(query, track["title"], track["webpage_url"], source="spotify-refined")
-                return [track]
+                tracks = [track]
 
-    return [await yt_search(query)]
+    if not tracks:
+        t_yt = await yt_search(query)
+        t_yt["_source_score"] = SOURCE_SCORES["fallback"]
+        tracks = [t_yt]
+
+    # Guardar en caché si fue búsqueda de texto exitosa
+    if not is_url and tracks:
+        try:
+            track     = tracks[0]
+            track_key = extract_track_key(track["webpage_url"])
+            expires   = int(track["_resolved_at"] + 4 * 3600)
+
+            # Determinar el source_score según qué fuente resolvió este track
+            # _source_origin se setea más abajo en el flujo de búsqueda
+            source_score = track.get("_source_score", SOURCE_SCORES["youtube_text"])
+
+            # Guardar metadatos globales del track
+            save_track(
+                track_key=track_key,
+                title=track["title"],
+                artist=track.get("artist", ""),
+                duration=track.get("duration", 0),
+                webpage_url=track["webpage_url"],
+                stream_url=track["url"],
+                stream_expires_at=expires,
+                source="youtube"
+            )
+            # Guardar la asociación usuario → track con source_score correcto
+            save_query(user_key, norm_q, track_key, source_score=source_score)
+
+            latency = int((time.time() - t_start) * 1000)
+            log_stat("CACHE_MISS", query, "MISS", latency)
+            print(f"[CACHE] Miss guardado '{query}' ({user_key}) → '{track['title']}' "
+                  f"[src={source_score:.2f}] en {latency}ms")
+        except Exception as e:
+            print(f"[CACHE] Error al persistir en caché: {e}")
+
+    return tracks
 
 
 # ─── Lazy playlist streaming ───────────────────────────────────────────────────

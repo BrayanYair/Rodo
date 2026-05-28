@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from .search import (yt_search, resolve_query, resolve_playlist_lazy,
                       resolve_by_type, resolve_user_saved_tracks,
                       PREFETCH_AHEAD, SPOTIFY_URL_RE)
+from .cache import mark_stream_invalid, extract_track_key, log_stat, _get_track_lock
 
 load_dotenv()
 
@@ -63,6 +64,7 @@ class MusicPlayer:
         self._loop              = None   # event loop, capturado en primer play
         self._lazy_queue        = []     # queries pendientes de playlist lazy (str)
         self._prefetching       = False  # evita fetches concurrentes del lazy queue
+        self._user_key          = "owner"
 
     # ─── Conexión ───────────────────────────────────────────────────────────────
 
@@ -105,12 +107,13 @@ class MusicPlayer:
         self._prefetching = True
         query = self._lazy_queue.pop(0)
         try:
-            from .search import _log_query
-            track = await yt_search(query, log=False, fast=True)
-            _log_query(query, track["title"], track["webpage_url"], source="spotify-lazy")
-            self.queue.append(track)
-            remaining = len(self._lazy_queue)
-            print(f"[PREFETCH] '{track['title'][:50]}' — {remaining} pendientes")
+            from .search import _log_query, resolve_query
+            tracks = await resolve_query(query, user_key=self._user_key)
+            if tracks:
+                track = tracks[0]
+                self.queue.append(track)
+                remaining = len(self._lazy_queue)
+                print(f"[PREFETCH] '{track['title'][:50]}' — {remaining} pendientes")
             # Si todavía hay espacio en la cola, traer otra
             if len(self.queue) < PREFETCH_AHEAD and self._lazy_queue:
                 asyncio.ensure_future(self._maybe_prefetch())
@@ -134,20 +137,27 @@ class MusicPlayer:
 
     # ─── Reproducción ──────────────────────────────────────────────────────────
 
-    async def _play_track(self, track: dict, start_time: float = 0.0):
+    async def _play_track(self, track: dict, start_time: float = 0.0, _retry: bool = False):
+        """
+        Reproduce un track. Si el after() detecta error de stream (URL inválida),
+        marca el track como inválido en cache, re-extrae la URL y reintenta UNA vez.
+        """
         # Capturar el event loop (siempre corremos en contexto async aquí)
         self._loop = asyncio.get_running_loop()
         self.current = track
 
-        # Re-extraer URL solo si tiene más de 4 horas (expiran en 6h).
-        # Evita +1,295ms por reproducción para URLs recién resueltas.
+        # ── L3 Refresh por TTL: re-extraer si la URL tiene >4 horas ──────────
         _age = time.time() - track.get("_resolved_at", 0)
-        if start_time == 0.0 and track.get("webpage_url") and _age > 3600 * 4:
+        if start_time == 0.0 and not _retry and track.get("webpage_url") and _age > 3600 * 4:
             print(f"[PLAYER] URL de '{track['title'][:40]}' tiene {_age/3600:.1f}h — re-fetching")
             try:
-                fresh = await yt_search(track["webpage_url"], log=False)
-                track["url"] = fresh["url"]
-                track["_resolved_at"] = time.time()
+                track_key = extract_track_key(track.get("webpage_url", ""))
+                lock = _get_track_lock(track_key)
+                async with lock:
+                    fresh = await yt_search(track["webpage_url"], log=False)
+                    track["url"] = fresh["url"]
+                    track["_resolved_at"] = time.time()
+                log_stat("STREAM_REFRESH", track.get("title", ""), "L3", 0)
             except Exception as e:
                 print(f"[PLAYER] Re-fetch falló, usando URL cached: {e}")
 
@@ -162,11 +172,65 @@ class MusicPlayer:
 
         def after(error):
             if error:
-                print(f"[PLAYER] Error post-track: {error}")
+                error_str = str(error).lower()
+                # Clasificar: ¿es un error de stream inválido (403, 410, network)?
+                is_stream_error = any(x in error_str for x in (
+                    "403", "410", "429", "403 forbidden", "unavailable",
+                    "connection reset", "epipe", "broken pipe",
+                ))
+                if is_stream_error and not _retry:
+                    print(f"[PLAYER] Error de stream detectado: {error} — marcando inválido y reintentando")
+                    asyncio.run_coroutine_threadsafe(
+                        self._refresh_and_retry(track, start_time), self._loop
+                    )
+                    return
+                print(f"[PLAYER] Error post-track (no recuperable): {error}")
             asyncio.run_coroutine_threadsafe(self._on_finished(), self._loop)
 
         self.voice_client.play(source, after=after)
-        print(f"[REPRODUCIENDO] {track['title']}")
+        print(f"[REPRODUCIENDO]{' (reintento)' if _retry else ''} {track['title']}") 
+
+    async def _refresh_and_retry(self, track: dict, start_time: float):
+        """
+        Llamado cuando after() detectó un error de stream (HTTP 403/429/firma inválida).
+
+        Flujo:
+          1. Marca el track como inválido en la caché (stream_invalid=1, stream_url=NULL)
+          2. Adquiere el lock por track_key (evita doble-refresh si dos guilds fallan a la vez)
+          3. Re-extrae la URL directamente desde YouTube
+          4. Actualiza la caché con la URL fresca
+          5. Reintenta la reproducción con _retry=True (evita recursión infinita)
+          6. Si el re-fetch también falla, avanza a la siguiente canción normalmente
+        """
+        webpage_url = track.get("webpage_url", "")
+        track_key   = extract_track_key(webpage_url)
+
+        # 1. Invalidar en caché antes de pedir el lock
+        if track_key:
+            mark_stream_invalid(track_key)
+            log_stat("PLAYBACK_FAIL_REFRESH", track.get("title", ""), "L3_FORCE", 0)
+
+        try:
+            lock = _get_track_lock(track_key) if track_key else None
+            ctx = lock if lock else asyncio.nullcontext()
+            async with ctx:
+                print(f"[PLAYER] Re-extrayendo URL por fallo de stream: '{track['title'][:50]}'")
+                fresh = await yt_search(webpage_url, log=False)
+                track["url"] = fresh["url"]
+                track["_resolved_at"] = time.time()
+
+                # Actualizar caché con la URL fresca
+                if track_key:
+                    from .cache import refresh_stream_url
+                    expires = int(track["_resolved_at"] + 4 * 3600)
+                    refresh_stream_url(track_key, fresh["url"], expires)
+
+            # 5. Reintentar reproducción (una sola vez, _retry=True)
+            await self._play_track(track, start_time=start_time, _retry=True)
+
+        except Exception as e:
+            print(f"[PLAYER] Re-extracción fallida también: {e} — avanzando a siguiente")
+            await self._on_finished()
 
     async def _on_finished(self):
         # Si el bot fue desconectado (ej: "pasemos a mi PC"), limpiar estado y no reproducir.
@@ -276,7 +340,8 @@ class MusicPlayer:
 
     async def add(self, query: str, shuffle: bool = False,
                   spotify_type: str | None = None,
-                  user_token: str | None = None):
+                  user_token: str | None = None,
+                  user_key: str = "owner"):
         """
         Agrega una canción, álbum, playlist, artista o biblioteca personal a la cola.
 
@@ -286,10 +351,12 @@ class MusicPlayer:
           - otros         → búsqueda por tipo en Spotify + lazy streaming
         user_token: token de Spotify personal del usuario (para saved_tracks y futuras
                     búsquedas en biblioteca privada)
+        user_key: clave identificadora del usuario para asociar sus gustos en caché SQLite
         """
         import time
         t0 = time.time()
-        print(f"[TIMING] Buscando: '{query[:50]}' (type={spotify_type or 'free'})")
+        self._user_key = user_key
+        print(f"[TIMING] Buscando: '{query[:50]}' (type={spotify_type or 'free'}, user_key={user_key})")
 
         pending: list[str] = []
 
@@ -314,7 +381,7 @@ class MusicPlayer:
                 print(f"[TIMING] URL lazy en {time.time()-t0:.2f}s "
                       f"— {len(tracks)} inmediatas, {len(pending)} pendientes")
             else:
-                tracks  = await resolve_query(query)
+                tracks  = await resolve_query(query, user_key=user_key)
                 print(f"[TIMING] Búsqueda en {time.time()-t0:.2f}s "
                       f"→ '{tracks[0]['title'][:50] if tracks else '?'}'")
 
