@@ -1,0 +1,21 @@
+{
+  "ts": "2026-05-27T18:34:59.279314",
+  "log_path": "C:\\Users\\Lenovo\\Desktop\\ProyectoAudio\\_benchmarks\\..\\rodolfo-host\\performance_log.jsonl",
+  "stt_stats": {
+    "total": 1510,
+    "mean_ms": 1590.1,
+    "median_ms": 1508.0,
+    "p95_ms": 2715,
+    "p99_ms": 3377,
+    "outliers_3s_pct": 2.1,
+    "commands_n": 37
+  },
+  "action_dist": {
+    "ignored": 1473,
+    "play_music": 22,
+    "greet": 9,
+    "stop_music": 4,
+    "unknown": 1,
+    "queue_music": 1
+  }
+}

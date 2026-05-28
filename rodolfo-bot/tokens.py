@@ -144,3 +144,58 @@ def get_user_token(username: str) -> str | None:
     if info and info.get("active"):
         return info.get("token")
     return None
+
+
+# ─── Spotify por usuario ──────────────────────────────────────────────────────
+
+def check_user_token_full(token: str) -> tuple[str | None, str | None]:
+    """
+    Verifica si el token corresponde a un usuario activo.
+    Retorna (display_name, username_key) o (None, None).
+    A diferencia de check_user_token, también devuelve la clave interna del usuario
+    para poder buscar sus datos (Spotify tokens, etc.) en tokens.json.
+    """
+    data = _load()
+    for username, info in data.items():
+        if info.get("active", False) and info.get("token") == token:
+            return info.get("name", username), username
+    return None, None
+
+
+def set_spotify_tokens(username: str, access_token: str,
+                       refresh_token: str, expires_at: int) -> None:
+    """
+    Guarda los tokens de Spotify del usuario.
+    Crea (o sobreescribe) el campo 'spotify' en su entrada de tokens.json.
+    """
+    data = _load()
+    key  = username.lower()
+    if key not in data:
+        # "owner" es el dueño del bot (usa el token maestro) — crear entrada especial
+        if key == "owner":
+            data[key] = {"active": True, "name": "Owner"}
+        else:
+            logger.warning("[TOKENS] set_spotify_tokens: usuario '%s' no existe", key)
+            return
+    data[key]["spotify"] = {
+        "access_token":  access_token,
+        "refresh_token": refresh_token,
+        "expires_at":    expires_at,
+    }
+    _save(data)
+    logger.info("[TOKENS] Spotify vinculado para: %s", username)
+
+
+def get_spotify_token_info(username: str) -> dict | None:
+    """
+    Retorna el dict {"access_token", "refresh_token", "expires_at"}
+    del usuario si tiene Spotify vinculado y está activo.
+    Retorna None si no tiene Spotify vinculado o el usuario no existe/está revocado.
+    """
+    data = _load()
+    key  = username.lower()
+    info = data.get(key)
+    # "owner" no tiene campo "active" obligatorio (es el dueño)
+    if info is not None and (info.get("active") or key == "owner"):
+        return info.get("spotify")   # None si no vinculó Spotify
+    return None

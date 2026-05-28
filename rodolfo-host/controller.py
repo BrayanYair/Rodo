@@ -74,7 +74,7 @@ class VoiceAudioController:
     API_TOKEN             = os.getenv("API_TOKEN", "")
     WAKE_WORD_ENABLED     = os.getenv("WAKE_WORD_ENABLED", "true").lower() == "true"
     ACTIVATOR_REQUIRED    = os.getenv("ACTIVATOR_REQUIRED", "true").lower() == "true"
-    ACTIVATOR_NAMES       = ("rodolfo", "jarvis", "asistente", "bot")
+    ACTIVATOR_NAMES       = ("rodo",)
     # Dónde habla Rodolfo:
     #   "discord" → solo por el canal de voz (tú estás en el canal, no hay eco)  ✅ default
     #   "local"   → solo por tu PC (privado, amigos no oyen)
@@ -920,7 +920,7 @@ class VoiceAudioController:
             )
             # Filler/interjecciones que NO son títulos
             filler = {
-                "hola", "buenas", "alo", "oye", "hey", "rodolfo",
+                "hola", "buenas", "alo", "oye", "hey", "rodo",
                 "no", "si", "sí", "ya", "ah", "eh", "ok", "vale",
                 "bueno", "buena", "claro", "obvio", "tal", "y",
                 "que", "qué", "como", "cómo", "donde", "dónde",
@@ -1187,7 +1187,7 @@ class VoiceAudioController:
                 # Sin el activador "Rodolfo" → ignoramos en silencio o usamos la memoria
                 if action == "ignored":
                     if time.time() - self.last_activator_time < self.ACTIVATOR_TIMEOUT:
-                        cmd_with_act = f"rodolfo {cmd}"
+                        cmd_with_act = f"rodo {cmd}"
                         print(f"  └─ [COMPLETADO CON MEMORIA] -> '{cmd_with_act}'")
                         parsed = self.parse_command(cmd_with_act)
                         action = parsed["action"]

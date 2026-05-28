@@ -4,6 +4,7 @@ Un MusicPlayer por servidor de Discord (guild_id).
 """
 
 import os
+import time
 import asyncio
 import tempfile
 from collections import deque
@@ -12,7 +13,9 @@ import discord
 import edge_tts
 from dotenv import load_dotenv
 
-from .search import yt_search, resolve_query
+from .search import (yt_search, resolve_query, resolve_playlist_lazy,
+                      resolve_by_type, resolve_user_saved_tracks,
+                      PREFETCH_AHEAD, SPOTIFY_URL_RE)
 
 load_dotenv()
 
@@ -58,6 +61,8 @@ class MusicPlayer:
         self._interrupted_time  = 0.0
         self.connect_lock       = asyncio.Lock()
         self._loop              = None   # event loop, capturado en primer play
+        self._lazy_queue        = []     # queries pendientes de playlist lazy (str)
+        self._prefetching       = False  # evita fetches concurrentes del lazy queue
 
     # ─── Conexión ───────────────────────────────────────────────────────────────
 
@@ -89,6 +94,31 @@ class MusicPlayer:
             print(f"[PLAYER] Conectando al canal: {channel.name}")
             self.voice_client = await channel.connect()
 
+    # ─── Lazy playlist prefetch ────────────────────────────────────────────────
+
+    async def _maybe_prefetch(self):
+        """Resuelve el siguiente item del lazy queue si la cola está casi vacía."""
+        if self._prefetching or not self._lazy_queue:
+            return
+        if len(self.queue) >= PREFETCH_AHEAD:
+            return
+        self._prefetching = True
+        query = self._lazy_queue.pop(0)
+        try:
+            from .search import _log_query
+            track = await yt_search(query, log=False, fast=True)
+            _log_query(query, track["title"], track["webpage_url"], source="spotify-lazy")
+            self.queue.append(track)
+            remaining = len(self._lazy_queue)
+            print(f"[PREFETCH] '{track['title'][:50]}' — {remaining} pendientes")
+            # Si todavía hay espacio en la cola, traer otra
+            if len(self.queue) < PREFETCH_AHEAD and self._lazy_queue:
+                asyncio.ensure_future(self._maybe_prefetch())
+        except Exception as e:
+            print(f"[PREFETCH] Error en '{query}': {e}")
+        finally:
+            self._prefetching = False
+
     async def disconnect(self):
         if self.voice_client and self.voice_client.is_connected():
             try:
@@ -99,6 +129,7 @@ class MusicPlayer:
             await self.voice_client.disconnect()
         self.voice_client = None
         self.queue.clear()
+        self._lazy_queue.clear()
         self.current = None
 
     # ─── Reproducción ──────────────────────────────────────────────────────────
@@ -108,11 +139,15 @@ class MusicPlayer:
         self._loop = asyncio.get_running_loop()
         self.current = track
 
-        # Re-extraer URL fresca al empezar desde el principio (evita error -138)
-        if start_time == 0.0 and track.get("webpage_url"):
+        # Re-extraer URL solo si tiene más de 4 horas (expiran en 6h).
+        # Evita +1,295ms por reproducción para URLs recién resueltas.
+        _age = time.time() - track.get("_resolved_at", 0)
+        if start_time == 0.0 and track.get("webpage_url") and _age > 3600 * 4:
+            print(f"[PLAYER] URL de '{track['title'][:40]}' tiene {_age/3600:.1f}h — re-fetching")
             try:
                 fresh = await yt_search(track["webpage_url"], log=False)
                 track["url"] = fresh["url"]
+                track["_resolved_at"] = time.time()
             except Exception as e:
                 print(f"[PLAYER] Re-fetch falló, usando URL cached: {e}")
 
@@ -134,6 +169,14 @@ class MusicPlayer:
         print(f"[REPRODUCIENDO] {track['title']}")
 
     async def _on_finished(self):
+        # Si el bot fue desconectado (ej: "pasemos a mi PC"), limpiar estado y no reproducir.
+        if not self.voice_client or not self.voice_client.is_connected():
+            self._tts_pending       = None
+            self._interrupted_track = None
+            self._interrupted_time  = 0.0
+            self.current            = None
+            return
+
         try:
             if self._tts_pending:
                 tts_path = self._tts_pending
@@ -148,7 +191,11 @@ class MusicPlayer:
                 await self._play_track(track, start_time=start_time)
                 return
             if self.queue:
-                await self._play_track(self.queue.popleft())
+                next_track = self.queue.popleft()
+                # Si la cola quedó baja, traer otra del lazy queue mientras suena esta
+                if len(self.queue) < PREFETCH_AHEAD and self._lazy_queue:
+                    asyncio.ensure_future(self._maybe_prefetch())
+                await self._play_track(next_track)
             else:
                 self.current = None
         except Exception as e:
@@ -156,9 +203,13 @@ class MusicPlayer:
             self._tts_pending       = None
             self._interrupted_track = None
             self._interrupted_time  = 0.0
-            if self.queue:
+            # Verificar conexión antes de reintentar
+            if self.queue and self.voice_client and self.voice_client.is_connected():
                 try:
-                    await self._play_track(self.queue.popleft())
+                    next_track = self.queue.popleft()
+                    if len(self.queue) < PREFETCH_AHEAD and self._lazy_queue:
+                        asyncio.ensure_future(self._maybe_prefetch())
+                    await self._play_track(next_track)
                 except Exception as e2:
                     print(f"[PLAYER] Error de recuperación: {e2}")
                     self.current = None
@@ -223,24 +274,71 @@ class MusicPlayer:
             await self._play_tts(tmp_path)
         return True
 
-    async def add(self, query: str):
-        tracks = await resolve_query(query)
+    async def add(self, query: str, shuffle: bool = False,
+                  spotify_type: str | None = None,
+                  user_token: str | None = None):
+        """
+        Agrega una canción, álbum, playlist, artista o biblioteca personal a la cola.
+
+        spotify_type: "album" | "playlist" | "artist" | "saved_tracks" | None
+          - None          → búsqueda libre (texto o URL directa)
+          - saved_tracks  → canciones guardadas del usuario (requiere user_token)
+          - otros         → búsqueda por tipo en Spotify + lazy streaming
+        user_token: token de Spotify personal del usuario (para saved_tracks y futuras
+                    búsquedas en biblioteca privada)
+        """
+        import time
+        t0 = time.time()
+        print(f"[TIMING] Buscando: '{query[:50]}' (type={spotify_type or 'free'})")
+
+        pending: list[str] = []
+
+        if spotify_type == "saved_tracks":
+            if not user_token:
+                print("[PLAYER] saved_tracks solicitado pero sin user_token — ignorando")
+                return [], False
+            tracks, pending = await resolve_user_saved_tracks(user_token, shuffle=shuffle)
+            print(f"[TIMING] resolve_user_saved_tracks en {time.time()-t0:.2f}s "
+                  f"— {len(tracks)} inmediatas, {len(pending)} pendientes")
+        elif spotify_type in ("album", "playlist", "artist"):
+            # Búsqueda inteligente por tipo — lazy streaming
+            tracks, pending = await resolve_by_type(query, spotify_type, shuffle=shuffle)
+            print(f"[TIMING] resolve_by_type en {time.time()-t0:.2f}s "
+                  f"— {len(tracks)} inmediatas, {len(pending)} pendientes")
+        else:
+            # Detectar URLs de Spotify (playlist/album pegadas directamente)
+            m = SPOTIFY_URL_RE.search(query)
+            is_url_list = m and m.group(1) in ("playlist", "album")
+            if is_url_list:
+                tracks, pending = await resolve_playlist_lazy(query, shuffle=shuffle)
+                print(f"[TIMING] URL lazy en {time.time()-t0:.2f}s "
+                      f"— {len(tracks)} inmediatas, {len(pending)} pendientes")
+            else:
+                tracks  = await resolve_query(query)
+                print(f"[TIMING] Búsqueda en {time.time()-t0:.2f}s "
+                      f"→ '{tracks[0]['title'][:50] if tracks else '?'}'")
+
+        self._lazy_queue.extend(pending)
+
         # voice_busy = bot conectado Y reproduciendo/pausado activamente
         voice_busy = (
             self.voice_client is not None
             and self.voice_client.is_connected()
             and (self.voice_client.is_playing() or self.voice_client.is_paused())
         )
-        # Iniciar reproducción si: no está ocupado (aunque haya cola vieja)
         should_start = not voice_busy
         if should_start:
             self.current = None
         for t in tracks:
             self.queue.append(t)
         if should_start and self.queue:
+            if self._lazy_queue:
+                asyncio.ensure_future(self._maybe_prefetch())
             await self._play_track(self.queue.popleft())
+        t1 = time.time()
         started_now = should_start
-        print(f"[ADD] query='{query[:40]}' started_now={started_now} queue={len(self.queue)}")
+        print(f"[ADD] started={started_now} queue={len(self.queue)} lazy={len(self._lazy_queue)} "
+              f"total={t1-t0:.2f}s")
         return tracks, started_now
 
     # ─── Controles ─────────────────────────────────────────────────────────────
@@ -256,6 +354,7 @@ class MusicPlayer:
 
     def stop(self):
         self.queue.clear()
+        self._lazy_queue.clear()
         self._interrupted_track = None
         self._interrupted_time  = 0.0
         self._tts_pending       = None
@@ -284,9 +383,10 @@ class MusicPlayer:
                 pass
 
     def clear_queue(self) -> int:
-        """Limpia la cola sin detener lo que suena. Devuelve cuántas se eliminaron."""
-        n = len(self.queue)
+        """Limpia cola y lazy queue sin detener lo que suena. Devuelve cuántas se eliminaron."""
+        n = len(self.queue) + len(self._lazy_queue)
         self.queue.clear()
+        self._lazy_queue.clear()
         return n
 
     def remove_last(self):

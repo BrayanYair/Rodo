@@ -1,0 +1,82 @@
+{
+  "ts": "2026-05-27T18:36:14.583488",
+  "n": 5,
+  "results": [
+    {
+      "mode": "powershell_startup_only",
+      "n": 5,
+      "mean_ms": 256.2,
+      "median_ms": 241.5,
+      "min_ms": 239.2,
+      "max_ms": 318.4,
+      "stdev_ms": 34.8,
+      "note": "SOLO startup PowerShell, sin hablar"
+    },
+    {
+      "label": "short",
+      "mode": "powershell_sapi",
+      "n": 5,
+      "mean_ms": 1614.7,
+      "median_ms": 1587.9,
+      "min_ms": 1570.0,
+      "max_ms": 1704.4,
+      "stdev_ms": 55.5,
+      "note": "incluye startup PS + TTS + reproduccion completa"
+    },
+    {
+      "label": "short",
+      "mode": "pyttsx3",
+      "n": 5,
+      "mean_ms": 1275.6,
+      "median_ms": 1270.2,
+      "min_ms": 1268.9,
+      "max_ms": 1291.6,
+      "stdev_ms": 9.5,
+      "note": "engine reutilizado — sin startup por frase"
+    },
+    {
+      "label": "medium",
+      "mode": "powershell_sapi",
+      "n": 5,
+      "mean_ms": 2433.8,
+      "median_ms": 2427.6,
+      "min_ms": 2412.3,
+      "max_ms": 2470.0,
+      "stdev_ms": 21.7,
+      "note": "incluye startup PS + TTS + reproduccion completa"
+    },
+    {
+      "label": "medium",
+      "mode": "pyttsx3",
+      "n": 5,
+      "mean_ms": 2192.8,
+      "median_ms": 2190.0,
+      "min_ms": 2188.7,
+      "max_ms": 2198.9,
+      "stdev_ms": 4.5,
+      "note": "engine reutilizado — sin startup por frase"
+    },
+    {
+      "label": "long",
+      "mode": "powershell_sapi",
+      "n": 5,
+      "mean_ms": 3599.7,
+      "median_ms": 3592.1,
+      "min_ms": 3579.4,
+      "max_ms": 3630.5,
+      "stdev_ms": 20.1,
+      "note": "incluye startup PS + TTS + reproduccion completa"
+    },
+    {
+      "label": "long",
+      "mode": "pyttsx3",
+      "n": 5,
+      "mean_ms": 3505.5,
+      "median_ms": 3506.4,
+      "min_ms": 3501.2,
+      "max_ms": 3510.7,
+      "stdev_ms": 3.9,
+      "note": "engine reutilizado — sin startup por frase"
+    }
+  ]
+}

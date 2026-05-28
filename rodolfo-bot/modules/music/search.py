@@ -6,6 +6,7 @@ Incluye logging de queries para análisis (query_log.jsonl).
 import os
 import re
 import json
+import time
 import asyncio
 from datetime import datetime
 from pathlib import Path
@@ -50,15 +51,23 @@ ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
 
 _URL_RE = re.compile(r"^https?://")
 
-def _build_search_query(query: str) -> str:
+# Cuántas canciones mantener listas en la cola regular durante lazy streaming
+PREFETCH_AHEAD = 2
+
+def _build_search_query(query: str, fast: bool = False) -> str:
     """
     URLs directas → sin cambios.
-    Texto → busca en YouTube Music (solo canciones, sin vlogs ni noticias).
-    Fallback: si ytmsearch falla, retorna ytsearch5 para el reintento.
+    fast=True  → ytsearch1 (query ya refinada por Spotify, 1 resultado basta)
+    fast=False → ytsearch1 (ytmsearch no está instalado en yt-dlp — caería a
+                             ytsearch5 internamente con ~7.8s de latencia;
+                             ytsearch1 directo son ~2.4s)
     """
     if _URL_RE.match(query):
-        return query                      # URL de YouTube / Spotify / etc.
-    return f"ytmsearch5:{query}"          # YouTube Music — solo música
+        return query
+    # Nota: ytmsearch (YouTube Music) NO está disponible en yt-dlp estándar.
+    # Usarlo hace que yt-dlp caiga a ytsearch5 como fallback interno → 7.8s.
+    # ytsearch1 (YouTube normal, 1 resultado) es suficiente y tarda ~2.4s.
+    return f"ytsearch1:{query}"
 
 # ─── Query log ─────────────────────────────────────────────────────────────────
 _QUERY_LOG = Path(__file__).parent.parent.parent / "query_log.jsonl"
@@ -79,13 +88,13 @@ def _log_query(query: str, result_title: str, result_url: str, source: str = "se
 
 
 # ─── Búsqueda ──────────────────────────────────────────────────────────────────
-async def yt_search(query: str, log: bool = True) -> dict:
+async def yt_search(query: str, log: bool = True, fast: bool = False) -> dict:
     """
     Busca en YouTube Music (texto) o resuelve una URL directa.
     Itera los resultados para saltar videos no disponibles.
     Fallback a ytsearch si ytmsearch no da resultados.
     """
-    search_query = _build_search_query(query)
+    search_query = _build_search_query(query, fast=fast)
 
     def _extract(q: str):
         info = ytdl.extract_info(q, download=False)
@@ -103,28 +112,101 @@ async def yt_search(query: str, log: bool = True) -> dict:
 
     loop = asyncio.get_event_loop()
 
+    def _is_music(entry: dict) -> bool:
+        """Filtra resultados que claramente no son música (tutoriales, vlogs, etc.)"""
+        duration = entry.get("duration") or 0
+        # Descartar videos muy largos (>12 min = probablemente no es canción)
+        if duration > 720:
+            return False
+        # Descartar videos muy cortos (<30s = snippet/ad)
+        if 0 < duration < 30:
+            return False
+        categories = [c.lower() for c in (entry.get("categories") or [])]
+        # Descartar categorías claramente no musicales
+        bad_cats = {"howto & style", "education", "news & politics", "sports", "gaming", "science & technology"}
+        if any(c in bad_cats for c in categories):
+            return False
+        return True
+
     try:
         info = await loop.run_in_executor(None, _extract, search_query)
     except Exception:
-        # Si YouTube Music falla, reintenta con YouTube normal
-        fallback = f"ytsearch5:{query}" if not _URL_RE.match(query) else query
-        print(f"[SEARCH] ytmsearch falló, reintentando con ytsearch: {query[:40]}")
+        # Fallback: agrega "song" para sesgar a música y reintenta con ytsearch1
+        if not _URL_RE.match(query):
+            fallback_q = f"{query} song"
+            fallback   = f"ytsearch1:{fallback_q}"
+        else:
+            fallback = query
+        print(f"[SEARCH] Búsqueda falló, reintentando con fallback: {query[:40]}")
         info = await loop.run_in_executor(None, _extract, fallback)
 
     track = {
-        "url":         info["url"],
-        "title":       info.get("title", "Unknown"),
-        "webpage_url": info.get("webpage_url", ""),
-        "duration":    info.get("duration", 0),
+        "url":          info["url"],
+        "title":        info.get("title", "Unknown"),
+        "webpage_url":  info.get("webpage_url", ""),
+        "duration":     info.get("duration", 0),
+        "_resolved_at": time.time(),   # timestamp para saber cuándo fue resuelto el URL
     }
     if log:
         _log_query(query, track["title"], track["webpage_url"])
     return track
 
 
+def _parse_artist_from_query(query: str) -> tuple[str, str | None]:
+    """
+    Detecta patrones como "flaca de calamaro" o "flaca por calamaro"
+    y devuelve (track_query, artist) para búsqueda más precisa en Spotify.
+    """
+    m = re.match(r"^(.+?)\s+(?:de|del|por|from)\s+(.+)$", query, re.IGNORECASE)
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    return query, None
+
+
+async def _spotify_refine(query: str) -> str | None:
+    """
+    Busca la query como texto en Spotify.
+    Devuelve "Canción Artista" si encuentra match, None si falla.
+    Mejora la precisión en YouTube evitando tutoriales y vlogs.
+    Interpreta "X de Y" como track X + artista Y para mejor resultado.
+    """
+    if not sp:
+        return None
+    try:
+        track_q, artist_q = _parse_artist_from_query(query)
+
+        # Búsqueda con campo de artista si se detectó
+        if artist_q:
+            sp_query = f"track:{track_q} artist:{artist_q}"
+        else:
+            sp_query = query
+
+        results = sp.search(sp_query, limit=1, type="track")
+        items   = results["tracks"]["items"]
+
+        # Si la búsqueda con campos no dio resultado, intenta sin campos
+        if not items and artist_q:
+            results = sp.search(f"{track_q} {artist_q}", limit=1, type="track")
+            items   = results["tracks"]["items"]
+
+        if not items:
+            return None
+
+        track  = items[0]
+        name   = track["name"]
+        artist = track["artists"][0]["name"]
+        refined = f"{name} {artist}"
+        print(f"[SPOTIFY] '{query}' → '{refined}'")
+        return refined
+    except Exception as e:
+        print(f"[SPOTIFY] Error refinando query: {e}")
+        return None
+
+
 async def resolve_query(query: str) -> list:
     """Devuelve lista de tracks. Las URLs de Spotify pueden expandirse a varias canciones."""
     if sp:
+        # ── URL de Spotify ────────────────────────────────────────────────────
         m = SPOTIFY_URL_RE.search(query)
         if m:
             kind, sid = m.group(1), m.group(2)
@@ -137,24 +219,270 @@ async def resolve_query(query: str) -> list:
                     return [track]
                 elif kind == "playlist":
                     items = sp.playlist_tracks(sid)["items"]
-                    tracks = []
-                    for it in items[:30]:
-                        if it.get("track"):
-                            tt = it["track"]
-                            q = f"{tt['name']} {tt['artists'][0]['name']}"
-                            t2 = await yt_search(q, log=False)
+                    sem   = asyncio.Semaphore(5)
+
+                    async def _fetch_pl(item, _sem=sem):
+                        if not item.get("track"):
+                            return None
+                        tt = item["track"]
+                        q  = f"{tt['name']} {tt['artists'][0]['name']}"
+                        try:
+                            async with _sem:
+                                t2 = await yt_search(q, log=False)
                             _log_query(q, t2["title"], t2["webpage_url"], source="spotify")
-                            tracks.append(t2)
-                    return tracks
+                            return t2
+                        except Exception as e:
+                            print(f"[SPOTIFY] Error buscando '{q}': {e}")
+                            return None
+
+                    results = await asyncio.gather(*[_fetch_pl(it) for it in items[:30]])
+                    return [t for t in results if t]
+
                 elif kind == "album":
                     items = sp.album_tracks(sid)["items"]
-                    results = []
-                    for t in items[:30]:
+                    sem   = asyncio.Semaphore(5)
+
+                    async def _fetch_al(t, _sem=sem):
                         q = f"{t['name']} {t['artists'][0]['name']}"
-                        t2 = await yt_search(q, log=False)
-                        _log_query(q, t2["title"], t2["webpage_url"], source="spotify")
-                        results.append(t2)
-                    return results
+                        try:
+                            async with _sem:
+                                t2 = await yt_search(q, log=False)
+                            _log_query(q, t2["title"], t2["webpage_url"], source="spotify")
+                            return t2
+                        except Exception as e:
+                            print(f"[SPOTIFY] Error buscando '{q}': {e}")
+                            return None
+
+                    results = await asyncio.gather(*[_fetch_al(t) for t in items[:30]])
+                    return [t for t in results if t]
             except Exception as e:
                 print(f"[SPOTIFY] Error resolviendo URL: {e}")
+
+        # ── Texto libre → refinar con Spotify primero ─────────────────────────
+        if not _URL_RE.match(query):
+            import time
+            ts = time.time()
+            refined = await _spotify_refine(query)
+            print(f"[TIMING] Spotify refine: {time.time()-ts:.2f}s")
+            if refined:
+                ts2 = time.time()
+                track = await yt_search(refined, log=False, fast=True)  # fast: ya viene de Spotify
+                print(f"[TIMING] YouTube search: {time.time()-ts2:.2f}s")
+                _log_query(query, track["title"], track["webpage_url"], source="spotify-refined")
+                return [track]
+
     return [await yt_search(query)]
+
+
+# ─── Lazy playlist streaming ───────────────────────────────────────────────────
+
+async def resolve_playlist_lazy(
+    url: str, shuffle: bool = False
+) -> tuple[list[dict], list[str]]:
+    """
+    Para URLs de Spotify playlist/album: estrategia de streaming lazy.
+
+    Devuelve (immediate_tracks, pending_queries):
+      - immediate_tracks : primeras (PREFETCH_AHEAD + 1) canciones con URL de YouTube,
+                           listas para empezar a reproducir de inmediato.
+      - pending_queries  : resto de canciones como strings "Título Artista",
+                           a resolver en background conforme se consumen.
+
+    Si shuffle=True, la lista completa se baraja antes de tomar las primeras.
+    """
+    if not sp:
+        return await resolve_query(url), []
+
+    m = SPOTIFY_URL_RE.search(url)
+    if not m or m.group(1) not in ("playlist", "album"):
+        return await resolve_query(url), []
+
+    kind, sid = m.group(1), m.group(2)
+    try:
+        if kind == "playlist":
+            raw = sp.playlist_tracks(sid)["items"]
+            all_queries = [
+                f"{it['track']['name']} {it['track']['artists'][0]['name']}"
+                for it in raw[:100] if it.get("track")
+            ]
+        else:
+            raw = sp.album_tracks(sid)["items"]
+            all_queries = [
+                f"{t['name']} {t['artists'][0]['name']}"
+                for t in raw[:100]
+            ]
+    except Exception as e:
+        print(f"[SPOTIFY] Error obteniendo {kind}: {e}")
+        return [], []
+
+    if shuffle:
+        import random
+        random.shuffle(all_queries)
+
+    n_immediate = PREFETCH_AHEAD + 1
+    immediate_qs = all_queries[:n_immediate]
+    pending_qs   = all_queries[n_immediate:]
+
+    sem = asyncio.Semaphore(3)
+
+    async def _fetch(q, _sem=sem):
+        try:
+            async with _sem:
+                track = await yt_search(q, log=False, fast=True)
+            _log_query(q, track["title"], track["webpage_url"], source="spotify-lazy")
+            return track
+        except Exception as e:
+            print(f"[PREFETCH] Error en '{q}': {e}")
+            return None
+
+    results = await asyncio.gather(*[_fetch(q) for q in immediate_qs])
+    return [t for t in results if t], pending_qs
+
+
+# ─── Biblioteca personal del usuario (Spotify OAuth) ─────────────────────────
+
+async def resolve_user_saved_tracks(
+    user_token: str, shuffle: bool = False
+) -> tuple[list[dict], list[str]]:
+    """
+    Obtiene las canciones guardadas del usuario de Spotify usando su token personal.
+    Devuelve (immediate_tracks, pending_queries) para lazy streaming, igual que
+    resolve_playlist_lazy, para que el player las maneje de la misma forma.
+
+    Requiere scope 'user-library-read' en el token OAuth del usuario.
+    """
+    try:
+        import aiohttp as _http
+        async with _http.ClientSession() as session:
+            async with session.get(
+                "https://api.spotify.com/v1/me/tracks",
+                headers={"Authorization": f"Bearer {user_token}"},
+                params={"limit": 50},
+            ) as resp:
+                data = await resp.json()
+                if resp.status != 200:
+                    print(f"[SPOTIFY USER] Error obteniendo guardadas (HTTP {resp.status}): "
+                          f"{data.get('error', {}).get('message', data)}")
+                    return [], []
+                items = data.get("items", [])
+    except Exception as e:
+        print(f"[SPOTIFY USER] Error en resolve_user_saved_tracks: {e}")
+        return [], []
+
+    all_queries = [
+        f"{it['track']['name']} {it['track']['artists'][0]['name']}"
+        for it in items if it.get("track")
+    ]
+    if not all_queries:
+        return [], []
+
+    if shuffle:
+        import random
+        random.shuffle(all_queries)
+
+    n_immediate  = PREFETCH_AHEAD + 1
+    immediate_qs = all_queries[:n_immediate]
+    pending_qs   = all_queries[n_immediate:]
+
+    sem = asyncio.Semaphore(3)
+
+    async def _fetch(q, _sem=sem):
+        try:
+            async with _sem:
+                track = await yt_search(q, log=False, fast=True)
+            _log_query(q, track["title"], track["webpage_url"], source="user-saved")
+            return track
+        except Exception as e:
+            print(f"[PREFETCH] Error en '{q}': {e}")
+            return None
+
+    results = await asyncio.gather(*[_fetch(q) for q in immediate_qs])
+    return [t for t in results if t], pending_qs
+
+
+# ─── Búsqueda por tipo de contenido ───────────────────────────────────────────
+
+async def resolve_by_type(
+    query: str, spotify_type: str, shuffle: bool = False
+) -> tuple[list[dict], list[str]]:
+    """
+    Busca en Spotify por tipo ("album" | "playlist" | "artist") y devuelve
+    (immediate_tracks, pending_queries) listo para el lazy streaming del player.
+
+    Si Spotify no está disponible o no hay resultados, hace fallback a YouTube
+    para que el usuario siempre escuche algo.
+
+    Ejemplos de queries (ya normalizadas por el parser):
+      "360"       + album   → álbum 360 en Spotify
+      "bad bunny" + artist  → top 20 canciones de Bad Bunny
+      "trap"      + playlist→ primera playlist pública de trap
+    """
+    if sp:
+        try:
+            if spotify_type == "album":
+                r     = sp.search(query, limit=3, type="album")
+                items = r["albums"]["items"]
+                if not items:
+                    raise ValueError("sin resultados")
+                album  = items[0]
+                print(f"[SPOTIFY] Álbum: '{album['name']}' — {album['artists'][0]['name']}")
+                return await resolve_playlist_lazy(
+                    f"https://open.spotify.com/album/{album['id']}", shuffle=shuffle
+                )
+
+            elif spotify_type == "playlist":
+                r     = sp.search(query, limit=3, type="playlist")
+                items = r["playlists"]["items"]
+                if not items:
+                    raise ValueError("sin resultados")
+                pl = items[0]
+                print(f"[SPOTIFY] Playlist: '{pl['name']}'")
+                return await resolve_playlist_lazy(
+                    f"https://open.spotify.com/playlist/{pl['id']}", shuffle=shuffle
+                )
+
+            elif spotify_type == "artist":
+                r     = sp.search(query, limit=1, type="artist")
+                items = r["artists"]["items"]
+                if not items:
+                    raise ValueError("sin resultados")
+                artist = items[0]
+                print(f"[SPOTIFY] Artista: '{artist['name']}'")
+                # Top tracks localizadas a AR (mejor cobertura para español)
+                top = sp.artist_top_tracks(artist["id"], country="AR")["tracks"]
+                all_queries = [
+                    f"{t['name']} {t['artists'][0]['name']}"
+                    for t in top[:20]
+                ]
+                if shuffle:
+                    import random
+                    random.shuffle(all_queries)
+                n_imm   = PREFETCH_AHEAD + 1
+                imm_qs  = all_queries[:n_imm]
+                pend_qs = all_queries[n_imm:]
+
+                sem = asyncio.Semaphore(3)
+
+                async def _fetch_at(q, _sem=sem):
+                    try:
+                        async with _sem:
+                            t = await yt_search(q, log=False, fast=True)
+                        _log_query(q, t["title"], t["webpage_url"], source="artist-top")
+                        return t
+                    except Exception as e:
+                        print(f"[PREFETCH] Error en '{q}': {e}")
+                        return None
+
+                res = await asyncio.gather(*[_fetch_at(q) for q in imm_qs])
+                return [t for t in res if t], pend_qs
+
+        except Exception as e:
+            print(f"[SPOTIFY] resolve_by_type({spotify_type}, '{query}') → {e}. Fallback YouTube.")
+
+    # Fallback: sin Spotify o sin resultado → YouTube directo
+    try:
+        track = await yt_search(query)
+        return [track], []
+    except Exception as e:
+        print(f"[SEARCH] Error YouTube fallback: {e}")
+        return [], []

@@ -70,12 +70,42 @@ async def find_voice_channel(guild):
 
 
 def find_member_by_name(guild, name: str):
+    """
+    Busca un miembro por nombre (display_name o username).
+    Prioridad: exacto en canal de voz → exacto en servidor → parcial en canal → parcial en servidor.
+    "Brayan" matchea "Brayan_04", "Brayan López", etc.
+    """
     if not guild or not name:
         return None
     clean = name.replace("🎤", "").strip().lower()
-    for member in guild.members:
-        if member.name.lower() == clean or member.display_name.lower() == clean:
-            return member
+
+    # Miembros actualmente en canales de voz (más probable que sea el target)
+    voice_members = [m for vc in guild.voice_channels for m in vc.members if not m.bot]
+
+    # 1. Exacto en canal de voz
+    for m in voice_members:
+        if m.name.lower() == clean or m.display_name.lower() == clean:
+            return m
+
+    # 2. Exacto en todo el servidor
+    for m in guild.members:
+        if m.name.lower() == clean or m.display_name.lower() == clean:
+            return m
+
+    # 3. Parcial en canal de voz (ej: "Brayan" matchea "Brayan_04")
+    for m in voice_members:
+        dn = m.display_name.lower()
+        un = m.name.lower()
+        if clean in dn or dn.startswith(clean) or clean in un or un.startswith(clean):
+            return m
+
+    # 4. Parcial en todo el servidor
+    for m in guild.members:
+        dn = m.display_name.lower()
+        un = m.name.lower()
+        if clean in dn or dn.startswith(clean) or clean in un or un.startswith(clean):
+            return m
+
     return None
 
 
@@ -182,7 +212,11 @@ class MusicCog(commands.Cog, name="Música"):
                 await player.say(R.error_no_query())
                 return
             try:
-                tracks, started_now = await player.add(query)
+                tracks, started_now = await player.add(
+                    query,
+                    shuffle=parsed.get("shuffle", False),
+                    spotify_type=parsed.get("spotify_type"),
+                )
                 if tracks:
                     title  = tracks[0]["title"][:60]
                     prefix = "🎵 Sonando" if started_now else "📋 En cola"
@@ -199,7 +233,11 @@ class MusicCog(commands.Cog, name="Música"):
             if not query:
                 return
             try:
-                tracks, _ = await player.add(query)
+                tracks, _ = await player.add(
+                    query,
+                    shuffle=parsed.get("shuffle", False),
+                    spotify_type=parsed.get("spotify_type"),
+                )
                 if tracks:
                     title = tracks[0]["title"][:60]
                     await _reply(f"**{title}**", "📋 En cola:")
@@ -305,7 +343,7 @@ class MusicCog(commands.Cog, name="Música"):
             text = message.content.strip()
             if text:
                 text_lower = text.lower()
-                has_act = any(n in text_lower for n in ("rodolfo", "jarvis", "asistente"))
+                has_act = any(n in text_lower for n in ("rodo", "rodolfo"))
                 if has_act:
                     parsed = full_parse(text, require_activator=True)
                     if parsed["action"] not in ("ignored", "unknown", "greet"):

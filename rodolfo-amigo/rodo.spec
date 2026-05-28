@@ -51,6 +51,8 @@ a = Analysis(
         "PIL.Image",
         "PIL.IcoImagePlugin",
         "PIL.PngImagePlugin",
+        # Discord RPC — detección automática de identidad
+        "pypresence",
         # Módulos locales (por si PyInstaller no los detecta)
         "overlay",
         "config_manager",
@@ -58,6 +60,7 @@ a = Analysis(
         "updater",
         "version",
         "tray",
+        "command_parser",
     ],
     hookspath=[],
     hooksconfig={},

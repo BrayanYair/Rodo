@@ -5,3 +5,4 @@ SpeechRecognition
 pyaudio
 requests
 python-dotenv
+pypresence

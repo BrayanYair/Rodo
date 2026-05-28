@@ -1,0 +1,2774 @@
+{
+  "ts": "2026-05-27T18:34:59.122482",
+  "root": "C:\\Users\\Lenovo\\Desktop\\ProyectoAudio",
+  "files_scanned": 36,
+  "results": [
+    {
+      "file": "..\\dev-local.py",
+      "async_funcs": 0,
+      "sync_funcs": 6,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-amigo\\amigo.py",
+      "async_funcs": 0,
+      "sync_funcs": 43,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-amigo\\command_parser.py",
+      "async_funcs": 0,
+      "sync_funcs": 7,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-amigo\\config_manager.py",
+      "async_funcs": 0,
+      "sync_funcs": 6,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-amigo\\orchestrator.py",
+      "async_funcs": 0,
+      "sync_funcs": 20,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-amigo\\overlay.py",
+      "async_funcs": 0,
+      "sync_funcs": 16,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-amigo\\setup_gui.py",
+      "async_funcs": 0,
+      "sync_funcs": 8,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-amigo\\tray.py",
+      "async_funcs": 0,
+      "sync_funcs": 5,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-amigo\\updater.py",
+      "async_funcs": 0,
+      "sync_funcs": 12,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-amigo\\version.py",
+      "async_funcs": 0,
+      "sync_funcs": 0,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-bot\\admin.py",
+      "async_funcs": 0,
+      "sync_funcs": 5,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-bot\\api.py",
+      "async_funcs": 0,
+      "sync_funcs": 0,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-bot\\api_runtime\\__init__.py",
+      "async_funcs": 0,
+      "sync_funcs": 0,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-bot\\api_runtime\\admin.py",
+      "async_funcs": 5,
+      "sync_funcs": 0,
+      "issues": [
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\admin.py",
+          "func": "http_admin_add_user",
+          "line": 12,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "data.get",
+              "line": 19,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 19,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 18,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 18,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\admin.py",
+          "func": "http_admin_revoke_user",
+          "line": 28,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "data.get",
+              "line": 34,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 34,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\admin.py",
+          "func": "http_admin_reactivate_user",
+          "line": 45,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "data.get",
+              "line": 51,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 51,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\admin.py",
+          "func": "http_admin_get_token",
+          "line": 66,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "request.rel_url.query.get",
+              "line": 67,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "request.rel_url.query.get",
+              "line": 67,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        }
+      ],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": [
+        {
+          "name": "http_admin_add_user",
+          "line": 12
+        },
+        {
+          "name": "http_admin_revoke_user",
+          "line": 28
+        },
+        {
+          "name": "http_admin_reactivate_user",
+          "line": 45
+        },
+        {
+          "name": "http_admin_list_users",
+          "line": 61
+        },
+        {
+          "name": "http_admin_get_token",
+          "line": 66
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-bot\\api_runtime\\auth.py",
+      "async_funcs": 1,
+      "sync_funcs": 2,
+      "issues": [
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\auth.py",
+          "func": "auth_middleware",
+          "line": 51,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "request.headers.get",
+              "line": 56,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "request.headers.get",
+              "line": 56,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        }
+      ],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": [
+        {
+          "name": "auth_middleware",
+          "line": 51
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-bot\\api_runtime\\command.py",
+      "async_funcs": 5,
+      "sync_funcs": 2,
+      "issues": [
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\command.py",
+          "func": "_resolve_personal_uri",
+          "line": 49,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "playlists.get",
+              "line": 63,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "playlists.get",
+              "line": 63,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "albums.get",
+              "line": 74,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "albums.get",
+              "line": 74,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "(item or {}).get",
+              "line": 75,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "(item or {}).get",
+              "line": 75,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "album.get",
+              "line": 77,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "album.get",
+              "line": 77,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\command.py",
+          "func": "_resolve_public_local",
+          "line": 105,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "track.get",
+              "line": 176,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "track.get",
+              "line": 176,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "result.get('albums', {}).get",
+              "line": 120,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "result.get('albums', {}).get",
+              "line": 120,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "result.get('playlists', {}).get",
+              "line": 124,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "result.get('playlists', {}).get",
+              "line": 124,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "result.get",
+              "line": 120,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "result.get",
+              "line": 120,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "obj.get",
+              "line": 122,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "obj.get",
+              "line": 122,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "result.get",
+              "line": 124,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "result.get",
+              "line": 124,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\command.py",
+          "func": "_handle_local_playback",
+          "line": 180,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "public.get",
+              "line": 186,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "public.get",
+              "line": 186,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\command.py",
+          "func": "http_command",
+          "line": 191,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "request.get",
+              "line": 194,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "request.get",
+              "line": 194,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "request.get",
+              "line": 195,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "request.get",
+              "line": 195,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 207,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 207,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 233,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 233,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 238,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 238,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 193,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 193,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 198,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 198,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 208,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 208,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 232,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 232,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 197,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 197,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 294,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 294,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 301,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 301,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        }
+      ],
+      "slow_awaits": [
+        {
+          "func": "_resolve_public_local",
+          "call": "resolve_query(query)",
+          "line": 165,
+          "speed": "SLOW"
+        },
+        {
+          "func": "http_command",
+          "call": "player.add(query, shuffle=parsed.get('shuffle', False), spotify_type=spotify_typ",
+          "line": 292,
+          "speed": "SLOW"
+        }
+      ],
+      "sequential_awaits": [],
+      "func_list_async": [
+        {
+          "name": "_find_best_voice_channel",
+          "line": 23
+        },
+        {
+          "name": "_resolve_personal_uri",
+          "line": 49
+        },
+        {
+          "name": "_resolve_public_local",
+          "line": 105
+        },
+        {
+          "name": "_handle_local_playback",
+          "line": 180
+        },
+        {
+          "name": "http_command",
+          "line": 191
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-bot\\api_runtime\\context.py",
+      "async_funcs": 4,
+      "sync_funcs": 2,
+      "issues": [
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\context.py",
+          "func": "http_move",
+          "line": 46,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "data.get",
+              "line": 48,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 48,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 49,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 49,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 50,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 50,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 51,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 51,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\context.py",
+          "func": "http_context",
+          "line": 125,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "request.rel_url.query.get",
+              "line": 132,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "request.rel_url.query.get",
+              "line": 132,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\context.py",
+          "func": "http_discord_auth",
+          "line": 180,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "token_data.get",
+              "line": 226,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "token_data.get",
+              "line": 226,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "user_data.get",
+              "line": 228,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "user_data.get",
+              "line": 228,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "user_data.get",
+              "line": 228,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "user_data.get",
+              "line": 228,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 190,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 190,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "session.post",
+              "line": 201,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "session.post",
+              "line": 201,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "session.get",
+              "line": 220,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "session.get",
+              "line": 220,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "user_data.get",
+              "line": 231,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "user_data.get",
+              "line": 231,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "user_data.get",
+              "line": 232,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "user_data.get",
+              "line": 232,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "token_data.get",
+              "line": 235,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "token_data.get",
+              "line": 235,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "user_data.get",
+              "line": 233,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "user_data.get",
+              "line": 233,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "user_data.get",
+              "line": 233,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "user_data.get",
+              "line": 233,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\context.py",
+          "func": "http_discord_refresh",
+          "line": 243,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "token_data.get",
+              "line": 280,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "token_data.get",
+              "line": 280,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 253,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 253,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "session.post",
+              "line": 264,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "session.post",
+              "line": 264,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "token_data.get",
+              "line": 284,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "token_data.get",
+              "line": 284,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        }
+      ],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": [
+        {
+          "name": "http_move",
+          "line": 46
+        },
+        {
+          "name": "http_context",
+          "line": 125
+        },
+        {
+          "name": "http_discord_auth",
+          "line": 180
+        },
+        {
+          "name": "http_discord_refresh",
+          "line": 243
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-bot\\api_runtime\\music.py",
+      "async_funcs": 12,
+      "sync_funcs": 1,
+      "issues": [
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\music.py",
+          "func": "http_play",
+          "line": 9,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "data.get",
+              "line": 11,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 11,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\music.py",
+          "func": "http_volume",
+          "line": 89,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "data.get",
+              "line": 91,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 91,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\music.py",
+          "func": "http_say",
+          "line": 117,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "data.get",
+              "line": 119,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 119,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        }
+      ],
+      "slow_awaits": [
+        {
+          "func": "http_play",
+          "call": "player.add(query)",
+          "line": 26,
+          "speed": "SLOW"
+        },
+        {
+          "func": "http_say",
+          "call": "player.say(text)",
+          "line": 134,
+          "speed": "SLOW"
+        }
+      ],
+      "sequential_awaits": [],
+      "func_list_async": [
+        {
+          "name": "http_play",
+          "line": 9
+        },
+        {
+          "name": "http_skip",
+          "line": 49
+        },
+        {
+          "name": "http_stop",
+          "line": 57
+        },
+        {
+          "name": "http_pause",
+          "line": 65
+        },
+        {
+          "name": "http_resume",
+          "line": 73
+        },
+        {
+          "name": "http_disconnect",
+          "line": 81
+        },
+        {
+          "name": "http_volume",
+          "line": 89
+        },
+        {
+          "name": "http_clear_queue",
+          "line": 99
+        },
+        {
+          "name": "http_remove_last",
+          "line": 107
+        },
+        {
+          "name": "http_say",
+          "line": 117
+        },
+        {
+          "name": "http_status",
+          "line": 140
+        },
+        {
+          "name": "http_health",
+          "line": 154
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-bot\\api_runtime\\server.py",
+      "async_funcs": 2,
+      "sync_funcs": 1,
+      "issues": [
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\server.py",
+          "func": "start_http",
+          "line": 51,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "app.router.add_post",
+              "line": 55,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 55,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 56,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 56,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 57,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 57,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 58,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 58,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 59,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 59,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 60,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 60,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 61,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 61,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 62,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 62,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 63,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 63,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 64,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 64,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 65,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 65,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 66,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 66,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 67,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 67,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 68,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 68,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 69,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 69,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 71,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 71,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 72,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 72,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 74,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 74,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 75,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 75,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 76,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 76,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 78,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 78,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 79,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 79,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 80,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_post",
+              "line": 80,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 81,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 81,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 82,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "app.router.add_get",
+              "line": 82,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        }
+      ],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": [
+        {
+          "name": "_wrapped",
+          "line": 46
+        },
+        {
+          "name": "start_http",
+          "line": 51
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-bot\\api_runtime\\spotify.py",
+      "async_funcs": 4,
+      "sync_funcs": 1,
+      "issues": [
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\spotify.py",
+          "func": "get_valid_user_spotify_token",
+          "line": 22,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "info.get",
+              "line": 34,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "info.get",
+              "line": 34,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "info.get",
+              "line": 35,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "info.get",
+              "line": 35,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "info.get",
+              "line": 36,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "info.get",
+              "line": 36,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "session.post",
+              "line": 54,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "session.post",
+              "line": 54,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 68,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 68,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 69,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 69,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\api_runtime\\spotify.py",
+          "func": "http_spotify_user_auth",
+          "line": 124,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "token_data.get",
+              "line": 177,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "token_data.get",
+              "line": 177,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "token_data.get",
+              "line": 178,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "token_data.get",
+              "line": 178,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 132,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 132,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 133,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 133,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "session.post",
+              "line": 156,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "session.post",
+              "line": 156,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        }
+      ],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": [
+        {
+          "name": "get_valid_user_spotify_token",
+          "line": 22
+        },
+        {
+          "name": "http_spotify_status",
+          "line": 80
+        },
+        {
+          "name": "http_spotify_oauth_url",
+          "line": 91
+        },
+        {
+          "name": "http_spotify_user_auth",
+          "line": 124
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-bot\\bot.py",
+      "async_funcs": 1,
+      "sync_funcs": 0,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": [
+        {
+          "name": "on_ready",
+          "line": 58
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-bot\\command_parser.py",
+      "async_funcs": 0,
+      "sync_funcs": 7,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-bot\\lanzar.py",
+      "async_funcs": 0,
+      "sync_funcs": 1,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-bot\\modules\\__init__.py",
+      "async_funcs": 0,
+      "sync_funcs": 0,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-bot\\modules\\music\\__init__.py",
+      "async_funcs": 0,
+      "sync_funcs": 0,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+      "async_funcs": 26,
+      "sync_funcs": 4,
+      "issues": [
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "find_voice_channel",
+          "line": 45,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "guild._voice_states.get",
+              "line": 50,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "guild._voice_states.get",
+              "line": 50,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "on_voice_state_update",
+          "line": 154,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "_players.get",
+              "line": 158,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "_players.get",
+              "line": 158,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "line": 192,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "parsed.get",
+              "line": 209,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 209,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 232,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 232,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 217,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 217,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 218,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 218,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 238,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 238,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 239,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 239,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "on_message",
+          "line": 327,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "guild._voice_states.get",
+              "line": 362,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "guild._voice_states.get",
+              "line": 362,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_handle_voice_message",
+          "line": 373,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "attachment.save",
+              "line": 381,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "guild._voice_states.get",
+              "line": 415,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "guild._voice_states.get",
+              "line": 415,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "os.unlink",
+              "line": 427,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 403,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "parsed.get",
+              "line": 403,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_transcribe_voice_message",
+          "line": 431,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "open",
+              "line": 444,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "os.unlink",
+              "line": 447,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "subprocess.run",
+              "line": 434,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_transcribe_with_whisper_module",
+          "line": 455,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "result.get",
+              "line": 463,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "result.get",
+              "line": 463,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        }
+      ],
+      "slow_awaits": [
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.error_no_query())",
+          "line": 212,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.add(query, shuffle=parsed.get('shuffle', False), spotify_type=parsed.get(",
+          "line": 215,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.music_started(title) if started_now else R.music_queued(title))",
+          "line": 224,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.error_not_found())",
+          "line": 229,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.add(query, shuffle=parsed.get('shuffle', False), spotify_type=parsed.get(",
+          "line": 236,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.music_skipped())",
+          "line": 252,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.music_queued(title))",
+          "line": 244,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.error_generic())",
+          "line": 247,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.music_stopped())",
+          "line": 257,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.music_paused())",
+          "line": 262,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.music_resumed())",
+          "line": 269,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.queue_cleared(n))",
+          "line": 279,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.queue_last_removed(removed))",
+          "line": 285,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.queue_empty_remove())",
+          "line": 288,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.music_status(title))",
+          "line": 294,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.music_status_nothing())",
+          "line": 297,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(R.disconnected())",
+          "line": 300,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_execute_action",
+          "call": "player.say(help_text)",
+          "line": 322,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_transcribe_voice_message",
+          "call": "loop.run_in_executor(None, lambda: subprocess.run(['whisper', audio_path, '--mod",
+          "line": 434,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_transcribe_with_whisper_module",
+          "call": "loop.run_in_executor(None, wm.load_model, WHISPER_MODEL)",
+          "line": 459,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_transcribe_with_whisper_module",
+          "call": "loop.run_in_executor(None, lambda: model.transcribe(audio_path, language='es', f",
+          "line": 460,
+          "speed": "SLOW"
+        },
+        {
+          "func": "cmd_play",
+          "call": "player.add(query)",
+          "line": 479,
+          "speed": "SLOW"
+        },
+        {
+          "func": "slash_play",
+          "call": "player.add(query)",
+          "line": 532,
+          "speed": "SLOW"
+        }
+      ],
+      "sequential_awaits": [
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 212,
+          "curr_line": 215,
+          "call": "player.add(query, shuffle=parsed.get('shuffle', False), spotify_type=parsed.get("
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 215,
+          "curr_line": 224,
+          "call": "player.say(R.music_started(title) if started_now else R.music_queued(title))"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 224,
+          "curr_line": 229,
+          "call": "player.say(R.error_not_found())"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 229,
+          "curr_line": 236,
+          "call": "player.add(query, shuffle=parsed.get('shuffle', False), spotify_type=parsed.get("
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 236,
+          "curr_line": 252,
+          "call": "player.say(R.music_skipped())"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 252,
+          "curr_line": 244,
+          "call": "player.say(R.music_queued(title))"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 244,
+          "curr_line": 247,
+          "call": "player.say(R.error_generic())"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 247,
+          "curr_line": 257,
+          "call": "player.say(R.music_stopped())"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 257,
+          "curr_line": 262,
+          "call": "player.say(R.music_paused())"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 262,
+          "curr_line": 269,
+          "call": "player.say(R.music_resumed())"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 269,
+          "curr_line": 279,
+          "call": "player.say(R.queue_cleared(n))"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 279,
+          "curr_line": 285,
+          "call": "player.say(R.queue_last_removed(removed))"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 285,
+          "curr_line": 288,
+          "call": "player.say(R.queue_empty_remove())"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 288,
+          "curr_line": 294,
+          "call": "player.say(R.music_status(title))"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 294,
+          "curr_line": 297,
+          "call": "player.say(R.music_status_nothing())"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 297,
+          "curr_line": 300,
+          "call": "player.say(R.disconnected())"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_execute_action",
+          "prev_line": 300,
+          "curr_line": 322,
+          "call": "player.say(help_text)"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\cog.py",
+          "func": "_transcribe_with_whisper_module",
+          "prev_line": 459,
+          "curr_line": 460,
+          "call": "loop.run_in_executor(None, lambda: model.transcribe(audio_path, language='es', f"
+        }
+      ],
+      "func_list_async": [
+        {
+          "name": "find_voice_channel",
+          "line": 45
+        },
+        {
+          "name": "on_ready",
+          "line": 123
+        },
+        {
+          "name": "_attach_voice_sink",
+          "line": 130
+        },
+        {
+          "name": "on_voice_state_update",
+          "line": 154
+        },
+        {
+          "name": "_on_user_voice_speech",
+          "line": 173
+        },
+        {
+          "name": "_execute_action",
+          "line": 192
+        },
+        {
+          "name": "_reply",
+          "line": 204
+        },
+        {
+          "name": "on_message",
+          "line": 327
+        },
+        {
+          "name": "_handle_voice_message",
+          "line": 373
+        },
+        {
+          "name": "_transcribe_voice_message",
+          "line": 431
+        },
+        {
+          "name": "_transcribe_with_whisper_module",
+          "line": 455
+        },
+        {
+          "name": "cmd_play",
+          "line": 473
+        },
+        {
+          "name": "cmd_skip",
+          "line": 486
+        },
+        {
+          "name": "cmd_stop",
+          "line": 491
+        },
+        {
+          "name": "cmd_pause",
+          "line": 496
+        },
+        {
+          "name": "cmd_resume",
+          "line": 501
+        },
+        {
+          "name": "cmd_queue",
+          "line": 506
+        },
+        {
+          "name": "cmd_leave",
+          "line": 518
+        },
+        {
+          "name": "slash_play",
+          "line": 525
+        },
+        {
+          "name": "slash_skip",
+          "line": 539
+        },
+        {
+          "name": "slash_pause",
+          "line": 544
+        },
+        {
+          "name": "slash_resume",
+          "line": 551
+        },
+        {
+          "name": "slash_stop",
+          "line": 558
+        },
+        {
+          "name": "slash_queue",
+          "line": 563
+        },
+        {
+          "name": "slash_now",
+          "line": 577
+        },
+        {
+          "name": "slash_leave",
+          "line": 585
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-bot\\modules\\music\\player.py",
+      "async_funcs": 8,
+      "sync_funcs": 16,
+      "issues": [
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\player.py",
+          "func": "_play_track",
+          "line": 137,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "self.voice_client.play",
+              "line": 168,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "track.get",
+              "line": 144,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "track.get",
+              "line": 144,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "track.get",
+              "line": 145,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "track.get",
+              "line": 145,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "opts.get",
+              "line": 156,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "opts.get",
+              "line": 156,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\player.py",
+          "func": "_play_tts",
+          "line": 219,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "self.voice_client.play",
+              "line": 232,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "os.unlink",
+              "line": 225,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\player.py",
+          "func": "say",
+          "line": 235,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "communicate.save",
+              "line": 248,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "os.unlink",
+              "line": 252,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        }
+      ],
+      "slow_awaits": [
+        {
+          "func": "_maybe_prefetch",
+          "call": "yt_search(query, log=False, fast=True)",
+          "line": 109,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_play_track",
+          "call": "yt_search(track['webpage_url'], log=False)",
+          "line": 148,
+          "speed": "SLOW"
+        },
+        {
+          "func": "say",
+          "call": "communicate.save(tmp_path)",
+          "line": 248,
+          "speed": "SLOW"
+        },
+        {
+          "func": "add",
+          "call": "resolve_query(query)",
+          "line": 317,
+          "speed": "SLOW"
+        }
+      ],
+      "sequential_awaits": [],
+      "func_list_async": [
+        {
+          "name": "connect",
+          "line": 69
+        },
+        {
+          "name": "_maybe_prefetch",
+          "line": 99
+        },
+        {
+          "name": "disconnect",
+          "line": 122
+        },
+        {
+          "name": "_play_track",
+          "line": 137
+        },
+        {
+          "name": "_on_finished",
+          "line": 171
+        },
+        {
+          "name": "_play_tts",
+          "line": 219
+        },
+        {
+          "name": "say",
+          "line": 235
+        },
+        {
+          "name": "add",
+          "line": 277
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+      "async_funcs": 11,
+      "sync_funcs": 5,
+      "issues": [
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "yt_search",
+          "line": 91,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "info.get",
+              "line": 145,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "info.get",
+              "line": 145,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "info.get",
+              "line": 146,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "info.get",
+              "line": 146,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "info.get",
+              "line": 147,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "info.get",
+              "line": 147,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "entry.get",
+              "line": 117,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "entry.get",
+              "line": 117,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "entry.get",
+              "line": 105,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "entry.get",
+              "line": 105,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "entry.get",
+              "line": 108,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "entry.get",
+              "line": 108,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "entry.get",
+              "line": 108,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "entry.get",
+              "line": 108,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "entry.get",
+              "line": 124,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "entry.get",
+              "line": 124,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "resolve_query",
+          "line": 206,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "item.get",
+              "line": 225,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "item.get",
+              "line": 225,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "_fetch_pl",
+          "line": 224,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "item.get",
+              "line": 225,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "item.get",
+              "line": 225,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "resolve_playlist_lazy",
+          "line": 279,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "it.get",
+              "line": 306,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "it.get",
+              "line": 306,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "resolve_user_saved_tracks",
+          "line": 344,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "it.get",
+              "line": 374,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "it.get",
+              "line": 374,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "session.get",
+              "line": 357,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "session.get",
+              "line": 357,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 367,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 367,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get('error', {}).get",
+              "line": 365,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get('error', {}).get",
+              "line": 365,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 365,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "data.get",
+              "line": 365,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        }
+      ],
+      "slow_awaits": [
+        {
+          "func": "yt_search",
+          "call": "loop.run_in_executor(None, _extract, search_query)",
+          "line": 132,
+          "speed": "SLOW"
+        },
+        {
+          "func": "yt_search",
+          "call": "loop.run_in_executor(None, _extract, fallback)",
+          "line": 141,
+          "speed": "SLOW"
+        },
+        {
+          "func": "resolve_query",
+          "call": "yt_search(query)",
+          "line": 274,
+          "speed": "SLOW"
+        },
+        {
+          "func": "resolve_query",
+          "call": "_spotify_refine(query)",
+          "line": 265,
+          "speed": "SLOW"
+        },
+        {
+          "func": "resolve_query",
+          "call": "yt_search(refined, log=False, fast=True)",
+          "line": 269,
+          "speed": "SLOW"
+        },
+        {
+          "func": "resolve_query",
+          "call": "yt_search(q, log=False)",
+          "line": 217,
+          "speed": "SLOW"
+        },
+        {
+          "func": "resolve_query",
+          "call": "yt_search(q, log=False)",
+          "line": 231,
+          "speed": "SLOW"
+        },
+        {
+          "func": "resolve_query",
+          "call": "yt_search(q, log=False)",
+          "line": 249,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_fetch_pl",
+          "call": "yt_search(q, log=False)",
+          "line": 231,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_fetch_al",
+          "call": "yt_search(q, log=False)",
+          "line": 249,
+          "speed": "SLOW"
+        },
+        {
+          "func": "resolve_playlist_lazy",
+          "call": "resolve_query(url)",
+          "line": 294,
+          "speed": "SLOW"
+        },
+        {
+          "func": "resolve_playlist_lazy",
+          "call": "resolve_query(url)",
+          "line": 298,
+          "speed": "SLOW"
+        },
+        {
+          "func": "resolve_playlist_lazy",
+          "call": "yt_search(q, log=False, fast=True)",
+          "line": 331,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_fetch",
+          "call": "yt_search(q, log=False, fast=True)",
+          "line": 331,
+          "speed": "SLOW"
+        },
+        {
+          "func": "resolve_user_saved_tracks",
+          "call": "yt_search(q, log=False, fast=True)",
+          "line": 392,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_fetch",
+          "call": "yt_search(q, log=False, fast=True)",
+          "line": 392,
+          "speed": "SLOW"
+        },
+        {
+          "func": "resolve_by_type",
+          "call": "yt_search(query)",
+          "line": 484,
+          "speed": "SLOW"
+        },
+        {
+          "func": "resolve_by_type",
+          "call": "yt_search(q, log=False, fast=True)",
+          "line": 469,
+          "speed": "SLOW"
+        },
+        {
+          "func": "_fetch_at",
+          "call": "yt_search(q, log=False, fast=True)",
+          "line": 469,
+          "speed": "SLOW"
+        }
+      ],
+      "sequential_awaits": [
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "yt_search",
+          "prev_line": 132,
+          "curr_line": 141,
+          "call": "loop.run_in_executor(None, _extract, fallback)"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "resolve_query",
+          "prev_line": 274,
+          "curr_line": 265,
+          "call": "_spotify_refine(query)"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "resolve_query",
+          "prev_line": 265,
+          "curr_line": 269,
+          "call": "yt_search(refined, log=False, fast=True)"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "resolve_query",
+          "prev_line": 269,
+          "curr_line": 217,
+          "call": "yt_search(q, log=False)"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "resolve_query",
+          "prev_line": 217,
+          "curr_line": 231,
+          "call": "yt_search(q, log=False)"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "resolve_query",
+          "prev_line": 231,
+          "curr_line": 249,
+          "call": "yt_search(q, log=False)"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "resolve_playlist_lazy",
+          "prev_line": 294,
+          "curr_line": 298,
+          "call": "resolve_query(url)"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "resolve_playlist_lazy",
+          "prev_line": 298,
+          "curr_line": 331,
+          "call": "yt_search(q, log=False, fast=True)"
+        },
+        {
+          "file": "..\\rodolfo-bot\\modules\\music\\search.py",
+          "func": "resolve_by_type",
+          "prev_line": 484,
+          "curr_line": 469,
+          "call": "yt_search(q, log=False, fast=True)"
+        }
+      ],
+      "func_list_async": [
+        {
+          "name": "yt_search",
+          "line": 91
+        },
+        {
+          "name": "_spotify_refine",
+          "line": 166
+        },
+        {
+          "name": "resolve_query",
+          "line": 206
+        },
+        {
+          "name": "_fetch_pl",
+          "line": 224
+        },
+        {
+          "name": "_fetch_al",
+          "line": 245
+        },
+        {
+          "name": "resolve_playlist_lazy",
+          "line": 279
+        },
+        {
+          "name": "_fetch",
+          "line": 328
+        },
+        {
+          "name": "resolve_user_saved_tracks",
+          "line": 344
+        },
+        {
+          "name": "_fetch",
+          "line": 389
+        },
+        {
+          "name": "resolve_by_type",
+          "line": 405
+        },
+        {
+          "name": "_fetch_at",
+          "line": 466
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-bot\\modules\\music\\sink.py",
+      "async_funcs": 1,
+      "sync_funcs": 2,
+      "issues": [],
+      "slow_awaits": [
+        {
+          "func": "transcribe_pcm",
+          "call": "loop.run_in_executor(None, lambda: recognizer.recognize_google(audio_data, langu",
+          "line": 94,
+          "speed": "SLOW"
+        }
+      ],
+      "sequential_awaits": [],
+      "func_list_async": [
+        {
+          "name": "transcribe_pcm",
+          "line": 84
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-bot\\responses.py",
+      "async_funcs": 0,
+      "sync_funcs": 32,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-bot\\test_spotify_oauth.py",
+      "async_funcs": 0,
+      "sync_funcs": 5,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-bot\\tokens.py",
+      "async_funcs": 0,
+      "sync_funcs": 11,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-host\\command_parser.py",
+      "async_funcs": 0,
+      "sync_funcs": 6,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-host\\controller.py",
+      "async_funcs": 1,
+      "sync_funcs": 42,
+      "issues": [
+        {
+          "file": "..\\rodolfo-host\\controller.py",
+          "func": "_speak_edge",
+          "line": 346,
+          "type": "ASYNC_FALSO",
+          "detail": [
+            {
+              "call": "pygame.mixer.music.load",
+              "line": 363,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "pygame.mixer.music.play",
+              "line": 364,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "pygame.time.wait",
+              "line": 374,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "os.unlink",
+              "line": 380,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "communicate.save",
+              "line": 353,
+              "type": "BLOCKING_IN_ASYNC"
+            },
+            {
+              "call": "os.unlink",
+              "line": 356,
+              "type": "BLOCKING_IN_ASYNC"
+            }
+          ],
+          "severity": "HIGH"
+        }
+      ],
+      "slow_awaits": [
+        {
+          "func": "_speak_edge",
+          "call": "communicate.save(tmp_path)",
+          "line": 353,
+          "speed": "SLOW"
+        }
+      ],
+      "sequential_awaits": [],
+      "func_list_async": [
+        {
+          "name": "_speak_edge",
+          "line": 346
+        }
+      ]
+    },
+    {
+      "file": "..\\rodolfo-host\\overlay.py",
+      "async_funcs": 0,
+      "sync_funcs": 12,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    },
+    {
+      "file": "..\\rodolfo-host\\responses.py",
+      "async_funcs": 0,
+      "sync_funcs": 32,
+      "issues": [],
+      "slow_awaits": [],
+      "sequential_awaits": [],
+      "func_list_async": []
+    }
+  ]
+}

@@ -28,7 +28,7 @@ Singleton que centraliza estado de sesión y decisiones de routing.
 - `OrchestratorState`: estado mutable (discord_mode, spotify_token, voice_channel, etc.)
   - Soporta acceso tipo dict (`state["discord_mode"]`) para retrocompatibilidad con `_session`
 - `RodoOrchestrator.decide()`: reglas determinísticas de routing → `Action`
-  - Punto de extensión para IA futura (reemplazar con `decide_ai()` que llame Claude API)
+  - Punto de extensión para IA futura (reemplazar con `decide_ai()` que llame Codex API)
   - `state.as_dict()` ya preparado como contexto para el LLM
 - `on_enter_voice()` / `on_exit_voice()`: resetean `discord_mode` automáticamente
 - `search_personal_library()`: busca en playlists y álbumes guardados del usuario (OAuth)
@@ -176,7 +176,7 @@ Agregar la herramienta en la sección de componentes y en los pendientes.
 
 ---
 
-## Reglas para Claude
+## Reglas para Codex
 
 1. **Nunca subir versiones sin permiso explícito.**
    - No cambiar `version.py` ni `version.json` sin que el usuario lo pida.
@@ -204,7 +204,7 @@ Agregar la herramienta en la sección de componentes y en los pendientes.
 | Componente | Stack |
 |---|---|
 | Cliente (`rodolfo-amigo`) | Python + SpeechRecognition + Google STT + pystray + tkinter + PyInstaller |
-| Orquestador (`orchestrator.py`) | Python puro — sin dependencias externas; listo para Claude API |
+| Orquestador (`orchestrator.py`) | Python puro — sin dependencias externas; listo para Codex API |
 | Servidor (`rodolfo-bot`) | Python + discord.py + yt-dlp + edge-tts + spotipy + aiohttp + ngrok |
 | Motor local (`rodolfo-host`) | Python + pygame + nircmd + spotipy OAuth + edge-tts |
 | STT | Google STT (principal) — Whisper local (futuro fallback) |
@@ -234,7 +234,7 @@ Agregar la herramienta en la sección de componentes y en los pendientes.
 - [x] Lógica de contexto en `rodolfo-amigo`: preguntar una vez, recordar por sesión
 - [x] Reset de `discord_mode` al salir/entrar de canal de Discord
 - [ ] Fusión de `rodolfo-host` en `rodolfo-amigo` (un solo exe con todas las capacidades)
-- [ ] Integrar `orchestrator.decide()` con lógica LLM (Claude API) como reemplazo de reglas
+- [ ] Integrar `orchestrator.decide()` con lógica LLM (Codex API) como reemplazo de reglas
 
 ### Spotify personal
 - [x] OAuth flow completo: vinculación por voz ("Rodo vincula mi Spotify")

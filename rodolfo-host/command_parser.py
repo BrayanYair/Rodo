@@ -11,7 +11,7 @@ porque solo aplican a la PC del dueño.
 import re
 import unicodedata
 
-ACTIVATOR_NAMES = ("rodolfo", "jarvis", "asistente", "bot")
+ACTIVATOR_NAMES = ("rodo",)
 
 
 # ─── Normalización ─────────────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ def full_parse(raw_text: str, require_activator: bool = True):
     # Fallback: si tiene activador y no es comando conocido, intentar como play_music
     # SOLO si no contiene palabras de rechazo/insulto
     if cmd and len(cmd) > 1:
-        greetings = ("hola", "buenas", "alo", "oye", "hey", "rodolfo")
+        greetings = ("hola", "buenas", "alo", "oye", "hey", "rodo")
         _reject_stop   = {"callate", "callense", "calla", "cierra", "silenciate"}
         _reject_ignore = {
             "maldito", "maldita", "idiota", "bruto", "bobo",
