@@ -1,5 +1,5 @@
 {
-  "version": "1.0.10",
-  "download_url": "https://github.com/BrayanYair/Rodo/releases/download/v1.0.10/Rodo.exe",
-  "changelog": "UX: voz 'lo tengo' al confirmar envío, 'dime' al esperar comando. Fix: 'detente' reconocido como stop. Fix: Rodo no pierde la voz del usuario cuando hay música de fondo."
+  "version": "1.0.11",
+  "download_url": "https://github.com/BrayanYair/Rodo/releases/download/v1.0.11/Byarox.exe",
+  "changelog": "Rodo pasa a llamarse Byarox. Nuevo activador de voz: di 'Byarox' para activar."
 }

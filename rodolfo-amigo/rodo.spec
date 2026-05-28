@@ -20,7 +20,7 @@ a = Analysis(
     ["amigo.py"],
     pathex=["."],
     binaries=sr_binaries,
-    datas=sr_datas + [("rodo_logo.ico", ".")],
+    datas=sr_datas + [("rodo_logo.ico", "."), ("nircmd.exe", ".")],
     hiddenimports=sr_hidden + [
         # Audio
         "pyaudio",
@@ -86,7 +86,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name="Rodo",
+    name="Byarox",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

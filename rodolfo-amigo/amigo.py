@@ -39,8 +39,8 @@ if sys.platform == "win32":
         import ctypes as _ct
         _ct.windll.user32.MessageBoxW(
             0,
-            "¡Rodo ya está escuchando!\n\nSi no ves el ícono, buscalo en la bandeja del sistema (esquina inferior derecha).",
-            "Rodo — ya activo",
+            "¡Byarox ya está escuchando!\n\nSi no ves el ícono, buscalo en la bandeja del sistema (esquina inferior derecha).",
+            "Byarox — ya activo",
             0x40,  # MB_ICONINFORMATION  (ícono ℹ️, no parece error)
         )
         sys.exit(0)
@@ -82,8 +82,8 @@ except Exception:
 from config_manager import config_exists, load_config, save_config
 from setup_gui      import run_setup, run_reconfigure
 
-# Activadores de voz — "rodo" es el principal
-ACTIVATOR_NAMES = ("rodo",)
+# Activadores de voz — "byarox" es el activador principal
+ACTIVATOR_NAMES = ("byarox",)
 
 # Primera vez: setup visual automático (SIN overlay activo aún — evita conflicto tkinter)
 if not config_exists():
@@ -105,14 +105,14 @@ def _create_desktop_shortcut():
         work_dir = os.path.dirname(sys.executable).replace("'", "''")
         ps = f"""
 $Desktop = [Environment]::GetFolderPath('Desktop')
-$Link    = "$Desktop\\Rodo.lnk"
+$Link    = "$Desktop\\Byarox.lnk"
 if (-not (Test-Path $Link)) {{
     $ws = New-Object -ComObject WScript.Shell
     $sc = $ws.CreateShortcut($Link)
     $sc.TargetPath       = '{exe_path}'
     $sc.WorkingDirectory = '{work_dir}'
     $sc.IconLocation     = '{exe_path},0'
-    $sc.Description      = 'Rodo - Asistente de voz'
+    $sc.Description      = 'Byarox - Asistente de voz'
     $sc.Save()
     ie4uinit.exe -show
 }}
@@ -190,10 +190,23 @@ logging.basicConfig(
 )
 _vlog = logging.getLogger("rodo.voice")
 
+def send_client_log(message: str):
+    """Manda un log del cliente al servidor de Rodo de forma asíncrona"""
+    def _send():
+        try:
+            if BOT_API_URL and BOT_API_TOKEN:
+                url = f"{BOT_API_URL}/api/client_log"
+                headers = {"Authorization": f"Bearer {BOT_API_TOKEN}"}
+                requests.post(url, json={"message": message}, headers=headers, timeout=2.0)
+        except Exception:
+            pass
+    threading.Thread(target=_send, daemon=True).start()
+
 def vlog(msg: str):
-    """Log de voz — va al archivo y a la consola."""
+    """Log de voz — va al archivo, a la consola, y al servidor."""
     print(msg)
     _vlog.info(msg)
+    send_client_log(msg)
 
 
 # ─── Chime de activación ─────────────────────────────────────────────────────
@@ -245,6 +258,114 @@ def _send_media_key(vk: int, times: int = 1):
             kbd(vk, 0, _EXT | _UP, 0) # key up
     except Exception as e:
         vlog(f"[MEDIA KEY] Error: {e}")
+
+def get_nircmd_path() -> str:
+    """Retorna la ruta de nircmd.exe dentro del bundle o local"""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, "nircmd.exe")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "nircmd.exe")
+
+_should_resume_spotify = False
+
+def _spotify_pause():
+    """Envía POST /api/spotify/pause al servidor en segundo plano"""
+    global _should_resume_spotify
+    def _run():
+        global _should_resume_spotify
+        if not BOT_API_URL or not BOT_API_TOKEN:
+            return
+        try:
+            url = f"{BOT_API_URL}/api/spotify/pause"
+            headers = {"Authorization": f"Bearer {BOT_API_TOKEN}"}
+            vlog("  -> [SPOTIFY] Enviando comando de pausa remota...")
+            r = requests.post(url, headers=headers, timeout=3.0)
+            if r.status_code == 200:
+                res = r.json()
+                if res.get("ok"):
+                    vlog("  -> [SPOTIFY] Reproducción pausada vía Spotify Connect")
+                    _should_resume_spotify = True
+                else:
+                    vlog(f"  -> [SPOTIFY] Pausa falló/no activa: {res.get('error')}")
+            else:
+                vlog(f"  -> [SPOTIFY] Pausa HTTP {r.status_code}")
+        except Exception as e:
+            vlog(f"  -> [SPOTIFY] Error pausando Spotify: {e}")
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def _spotify_resume():
+    """Envía POST /api/spotify/resume al servidor en segundo plano"""
+    global _should_resume_spotify
+    def _run():
+        global _should_resume_spotify
+        if not BOT_API_URL or not BOT_API_TOKEN:
+            return
+        try:
+            url = f"{BOT_API_URL}/api/spotify/resume"
+            headers = {"Authorization": f"Bearer {BOT_API_TOKEN}"}
+            vlog("  -> [SPOTIFY] Enviando comando de reanudación remota...")
+            r = requests.post(url, headers=headers, timeout=3.0)
+            if r.status_code == 200:
+                res = r.json()
+                if res.get("ok"):
+                    vlog("  -> [SPOTIFY] Reproducción reanudada vía Spotify Connect")
+                else:
+                    vlog(f"  -> [SPOTIFY] Reanudación falló: {res.get('error')}")
+            else:
+                vlog(f"  -> [SPOTIFY] Reanudación HTTP {r.status_code}")
+        except Exception as e:
+            vlog(f"  -> [SPOTIFY] Error reanudando Spotify: {e}")
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def _mute_system():
+    """Silencia el volumen del sistema usando nircmd.exe y detiene Spotify Connect"""
+    global _should_resume_spotify
+    _should_resume_spotify = False
+    
+    # Pausar Spotify en segundo plano
+    _spotify_pause()
+    
+    # Detener reproducción local
+    _send_media_key(_VK_MEDIA_STOP)
+
+    def _run():
+        try:
+            path = get_nircmd_path()
+            if not os.path.exists(path):
+                vlog(f"  -> [AUDIO] nircmd.exe no encontrado en: {path}")
+                return
+            vlog(f"  -> [AUDIO] Silenciando volumen maestro...")
+            res = subprocess.run([path, "mutesysvolume", "1"], capture_output=True, creationflags=0x08000000)
+            if res.returncode != 0:
+                vlog(f"  -> [AUDIO] nircmd fallo con codigo {res.returncode}")
+        except Exception as e:
+            vlog(f"  -> [AUDIO] Error silenciando: {e}")
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def _unmute_system():
+    """Restaura el volumen del sistema y reanuda Spotify Connect si corresponde"""
+    global _should_resume_spotify
+    
+    if _should_resume_spotify:
+        _spotify_resume()
+        _should_resume_spotify = False
+
+    def _run():
+        try:
+            path = get_nircmd_path()
+            if not os.path.exists(path):
+                vlog(f"  -> [AUDIO] nircmd.exe no encontrado en: {path}")
+                return
+            vlog(f"  -> [AUDIO] Restaurando volumen maestro...")
+            res = subprocess.run([path, "mutesysvolume", "0"], capture_output=True, creationflags=0x08000000)
+            if res.returncode != 0:
+                vlog(f"  -> [AUDIO] nircmd fallo con codigo {res.returncode}")
+        except Exception as e:
+            vlog(f"  -> [AUDIO] Error restaurando: {e}")
+    threading.Thread(target=_run, daemon=True).start()
+
 
 def _media_beep(tone: str = "ok"):
     """
@@ -646,7 +767,7 @@ def _spotify_oauth_flow() -> bool:
     if not _done.wait(timeout=120):
         server.server_close()
         vlog("[SPOTIFY_OAUTH] Timeout — el usuario no completó el flujo en 2 min")
-        _speak_local_bg("Se agotó el tiempo. Si querés vincular Spotify, decí 'Rodo vincula mi Spotify'.")
+        _speak_local_bg("Se agotó el tiempo. Si querés vincular Spotify, decí 'Byarox vincula mi Spotify'.")
         return False
 
     server.server_close()
@@ -895,6 +1016,7 @@ def send_command(text: str) -> bool:
 def _open_local_playback(text: str, prefix: str = "Abriendo") -> bool:
     """Pide al bot resolver Spotify/YouTube y abre el resultado en esta PC."""
     import webbrowser as _wb
+    global _should_resume_spotify
 
     try:
         lr = requests.post(
@@ -918,10 +1040,14 @@ def _open_local_playback(text: str, prefix: str = "Abriendo") -> bool:
         return False
 
     if result.get("ok"):
-        title = result.get("title", "la canciÃ³n")
+        _should_resume_spotify = False
+        title = result.get("title", "la canción")
         mode = result.get("mode", "youtube")
         if mode == "spotify":
-            _wb.open(result["spotify_uri"])
+            uri = result["spotify_uri"]
+            if uri.startswith("spotify:") and not uri.endswith(":play"):
+                uri = f"{uri}:play"
+            _wb.open(uri)
             vlog(f"  -> [LOCAL] Spotify abierto: '{title}'\n")
             _speak_local_bg(f"{prefix} {title} en Spotify.")
         else:
@@ -930,6 +1056,7 @@ def _open_local_playback(text: str, prefix: str = "Abriendo") -> bool:
             _speak_local_bg(f"{prefix} {title} en YouTube.")
         _ov("ok")
         return True
+
 
     vlog(f"  -> [LOCAL] Sin resultado: {result}\n")
     _speak_local_bg("No encontrÃ© esa canciÃ³n. IntentÃ¡ de nuevo.")
@@ -945,7 +1072,7 @@ def normalize(text: str) -> str:
 
 def has_activator(text: str) -> bool:
     norm = normalize(text)
-    # Usar word boundary para no detectar "rodo" dentro de "rodolfo"
+    # Usar word boundary para no detectar el activador dentro de otra palabra
     return any(re.search(rf"\b{name}\b", norm) for name in ACTIVATOR_NAMES)
 
 
@@ -1041,35 +1168,68 @@ def _start_voice_monitor(orch, poll_interval: float = 5.0):
 def main():
     print()
     print("╔════════════════════════════════════════════╗")
-    print("║           🎤  Rodo  — Companion            ║")
+    print("║         🎤  Byarox  — Companion            ║")
     print("╠════════════════════════════════════════════╣")
     print(f"║  Hola, {NOMBRE:<35s} ║")
-    print("║  Di 'Rodo pon [cancion]' para empezar      ║")
+    print("║  Di 'Byarox pon [cancion]' para empezar    ║")
     print("║  Ctrl+C para salir                         ║")
     print("╚════════════════════════════════════════════╝")
     print()
 
     recognizer = sr.Recognizer()
 
+    print("[INIT] Dispositivos de grabación detectados:")
     try:
-        mic = sr.Microphone()
-    except (OSError, AttributeError):
-        print("ERROR: No se detecto microfono.")
-        print("Conecta un microfono y vuelve a abrir Rodo.")
-        input("Presiona Enter para cerrar...")
-        return
+        names = sr.Microphone.list_microphone_names()
+        for idx, name in enumerate(names):
+            try:
+                name_clean = name.encode('utf-8', errors='replace').decode('utf-8')
+            except Exception:
+                name_clean = name
+            print(f"  [{idx}] {name_clean}")
+    except Exception:
+        pass
+    print()
 
-    print("[INIT] Calibrando microfono...")
+    mic_name = cfg.get("microphone_name", "")
+    mic_index = cfg.get("microphone_index", -1)
+
+    mic = None
+    try:
+        if mic_index >= 0:
+            mic = sr.Microphone(device_index=mic_index)
+            print(f"[INIT] Usando micrófono por índice: {mic_index}")
+        elif mic_name:
+            names = sr.Microphone.list_microphone_names()
+            for idx, name in enumerate(names):
+                if mic_name.lower() in name.lower():
+                    mic = sr.Microphone(device_index=idx)
+                    print(f"[INIT] Usando micrófono por nombre: {name} (índice {idx})")
+                    break
+        
+        if mic is None:
+            mic = sr.Microphone()
+            print("[INIT] Usando micrófono predeterminado del sistema")
+    except Exception as e:
+        print(f"ERROR al inicializar micrófono: {e}")
+        try:
+            mic = sr.Microphone()
+        except Exception:
+            print("ERROR: No se detectó micrófono.")
+            input("Presiona Enter para cerrar...")
+            return
+
+    print("[INIT] Calibrando micrófono...")
     with mic as source:
         recognizer.adjust_for_ambient_noise(source, duration=1.5)
-    print("[INIT] Listo! Empieza a hablar.\n")
+    print("[INIT] ¡Listo! Empieza a hablar.\n")
 
     print("Ejemplos de comandos:")
-    print("  Rodo pon despacito")
-    print("  Rodo siguiente")
-    print("  Rodo pausa / sigue")
-    print("  Rodo que esta sonando")
-    print("  Rodo para la musica")
+    print("  Byarox pon despacito")
+    print("  Byarox siguiente")
+    print("  Byarox pausa / sigue")
+    print("  Byarox que esta sonando")
+    print("  Byarox para la musica")
     print()
 
     # ── Bienvenida para usuarios nuevos (flujo secuencial, paso a paso) ─────────
@@ -1098,7 +1258,7 @@ def main():
             save_config(cfg)
 
             vlog("[ONBOARDING] Detectando si Discord está abierto...")
-            _speak_local(f"Hola {NOMBRE}! Soy Rodo. Hacemos una configuración rápida.")
+            _speak_local(f"Hola {NOMBRE}! Soy Byarox. Hacemos una configuración rápida.")
 
             if _is_discord_running():
                 vlog("[ONBOARDING] Discord detectado — vinculando...")
@@ -1117,11 +1277,11 @@ def main():
                     _speak_local(f"Listo, te reconocí como {_identity.get('display_name', NOMBRE)}.")
                     vlog(f"[ONBOARDING] Discord vinculado: {_identity.get('display_name')} ({DISCORD_ID})")
                 else:
-                    _speak_local("No pude conectarme. Decí Rodo vincula mi Discord cuando quieras.")
+                    _speak_local("No pude conectarme. Decí Byarox vincula mi Discord cuando quieras.")
                     vlog("[ONBOARDING] Discord abierto pero falló el vínculo")
             else:
                 vlog("[ONBOARDING] Discord no detectado — saltando")
-                _speak_local("No detecté Discord abierto. Si lo usás, abrilo y decí Rodo vincula mi Discord.")
+                _speak_local("No detecté Discord abierto. Si lo usás, abrilo y decí Byarox vincula mi Discord.")
 
         # ── PASO 2: Spotify (detectar instalación, preguntar Premium) ────────
         if not cfg.get("spotify_offered", False):
@@ -1154,11 +1314,12 @@ def main():
 
         # ── FIN del onboarding ───────────────────────────────────────────────
         _speak_local(
-            "¡Todo listo! Ya podés usarme. Decí Rodo, pon una canción para empezar."
+            "¡Todo listo! Ya podés usarme. Decí Byarox, pon una canción para empezar."
         )
         vlog("[ONBOARDING] Configuración inicial completada")
 
     last_activator_time = 0.0
+    _is_muted           = False
     ACTIVATOR_TIMEOUT   = 6.0   # segundos de ventana tras decir solo "Rodo"
 
     # Estado centralizado en el orquestador
@@ -1174,6 +1335,12 @@ def main():
 
     while True:
         try:
+            # Asegurar volumen del sistema restaurado si la ventana de activador expiró
+            if time.time() - last_activator_time >= ACTIVATOR_TIMEOUT:
+                if _is_muted:
+                    _unmute_system()
+                    _is_muted = False
+
             with mic as source:
                 recognizer.adjust_for_ambient_noise(source, duration=0.2)
                 # Si hay ruido de fondo (música de Discord, TV, etc.) el umbral sube
@@ -1186,11 +1353,16 @@ def main():
                 print("[ESCUCHO] ", end="", flush=True)
                 audio = recognizer.listen(source, timeout=10, phrase_time_limit=7)
 
+            # Restaurar volumen tan pronto como el usuario termina de hablar
+            if _is_muted:
+                _unmute_system()
+                _is_muted = False
+
             # Transcribir con Google STT
             _ov("processing")
             try:
                 old_timeout = socket.getdefaulttimeout()
-                socket.setdefaulttimeout(3.0)
+                socket.setdefaulttimeout(7.0)
                 try:
                     text = recognizer.recognize_google(audio, language="es-ES").strip()
                 finally:
@@ -1199,18 +1371,23 @@ def main():
                 vlog("(nada — STT no entendió)")
                 _ov("idle")
                 continue
+            except (socket.timeout, TimeoutError) as e:
+                vlog("(timeout STT: la red tardó más de 7 segundos en responder)")
+                _ov("error")
+                time.sleep(1)
+                continue
             except sr.RequestError as e:
                 vlog(f"(error STT: {e})")
                 _ov("error")
                 time.sleep(1)
                 continue
 
-            # Corregir errores frecuentes del STT antes de cualquier procesamiento
-            # "Rodolfo" es la transcripción más común cuando se dice "Rodo"
-            text = re.sub(r"\bRodolfo\b", "Rodo", text, flags=re.IGNORECASE)
-            # "rodo" con tilde ("rodó") también ocurre — normalize() lo limpia,
-            # pero lo corregimos aquí para que vlog muestre el texto ya limpio
-            text = re.sub(r"\brod[oó]\b", "Rodo", text, flags=re.IGNORECASE)
+
+            # Corregir variantes de "Byarox" que Google STT puede generar
+            text = re.sub(r"\bBiarox\b",  "Byarox", text, flags=re.IGNORECASE)
+            text = re.sub(r"\bBiharox\b", "Byarox", text, flags=re.IGNORECASE)
+            text = re.sub(r"\bYarox\b",   "Byarox", text, flags=re.IGNORECASE)
+            text = re.sub(r"\bByaro\b",   "Byarox", text, flags=re.IGNORECASE)
 
             vlog(f"[ESCUCHÉ] '{text}'")
 
@@ -1230,6 +1407,8 @@ def main():
                     # "dime" le indica al usuario que Rodo está esperando el comando
                     _speak_local_bg("dime")
                     last_activator_time = time.time()
+                    _mute_system()
+                    _is_muted = True
                     vlog(f"  -> [ACTIVADOR] Escuchando comando ({ACTIVATOR_TIMEOUT:.0f}s)...")
                     continue
                 else:
@@ -1237,11 +1416,11 @@ def main():
             else:
                 # Sin activador — ¿hay ventana activa?
                 if time.time() - last_activator_time < ACTIVATOR_TIMEOUT:
-                    text = f"Rodo {text}"
+                    text = f"Byarox {text}"
                     vlog(f"  -> [VENTANA] completado → '{text}'")
                     last_activator_time = 0.0
                 else:
-                    vlog(f"  -> [IGNORADO] sin activador (STT escuchó pero no dijo 'rodo')")
+                    vlog(f"  -> [IGNORADO] sin activador (STT escuchó pero no dijo 'byarox')")
                     last_activator_time = 0.0
                     continue
 
@@ -1482,9 +1661,13 @@ def main():
                     vlog("  -> [OK] comando enviado\n")
                     _ov("ok")
                     _speak_local_bg("lo tengo")   # confirmación de envío al bot
+                    if _is_music_command(text):
+                        global _should_resume_spotify
+                        _should_resume_spotify = False
                     if result.get("need_spotify_auth"):
                         vlog("  -> [SPOTIFY_OAUTH] Servidor indica que falta Spotify - iniciando flujo\n")
                         threading.Thread(target=_spotify_oauth_flow, daemon=True).start()
+
                 else:
                     err_msg = result.get("error", "")
                     err_code = result.get("status_code", 0)
@@ -1505,15 +1688,23 @@ def main():
                 _ov("idle")
 
         except sr.WaitTimeoutError:
+            if _is_muted:
+                _unmute_system()
+                _is_muted = False
             print("(silencio)")
             _ov("idle")
             continue
 
         except KeyboardInterrupt:
+            if _is_muted:
+                _unmute_system()
             print("\n\nHasta luego!")
             break
 
         except Exception as e:
+            if _is_muted:
+                _unmute_system()
+                _is_muted = False
             print(f"\n[ERROR] {e}")
             _ov("error")
             time.sleep(1)

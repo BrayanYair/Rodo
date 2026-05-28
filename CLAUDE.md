@@ -1,4 +1,6 @@
-# Reglas del Proyecto Rodo
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ---
 
@@ -10,50 +12,134 @@ sin que el usuario tenga que pensar en qué herramienta usar.
 
 ---
 
-## Componentes del sistema
+## Comandos de desarrollo
 
-### `rodolfo-amigo/` — El cliente (Rodo.exe)
-Lo que instala **cualquier usuario** (vos, amigos, clientes).
-- Escucha el micrófono y detecta el activador "rodo"
-- Transcribe con Google STT
-- Consulta el contexto al bot (¿estoy en Discord?)
-- Enruta el comando al módulo correcto via `orchestrator.py`
-- Muestra overlay visual de estado
-- Ícono en la bandeja del sistema
-- Se compila con PyInstaller → `Rodo.exe`
-- Se actualiza automáticamente desde GitHub Releases
+### Levantar el servidor (bot + ngrok)
+```bash
+cd rodolfo-bot
+python lanzar.py          # bot + túnel ngrok en una sola terminal
+# Alternativa sin ngrok (solo el bot HTTP):
+python bot.py
+```
 
-#### `rodolfo-amigo/orchestrator.py` — Orquestador central
-Singleton que centraliza estado de sesión y decisiones de routing.
-- `OrchestratorState`: estado mutable (discord_mode, spotify_token, voice_channel, etc.)
-  - Soporta acceso tipo dict (`state["discord_mode"]`) para retrocompatibilidad con `_session`
-- `RodoOrchestrator.decide()`: reglas determinísticas de routing → `Action`
-  - Punto de extensión para IA futura (reemplazar con `decide_ai()` que llame Claude API)
-  - `state.as_dict()` ya preparado como contexto para el LLM
-- `on_enter_voice()` / `on_exit_voice()`: resetean `discord_mode` automáticamente
-- `search_personal_library()`: busca en playlists y álbumes guardados del usuario (OAuth)
+### Levantar bot + host juntos (dev local)
+```bash
+python dev-local.py       # o doble clic en dev-local.bat
+# Lanza rodolfo-bot/bot.py y rodolfo-host/controller.py con output coloreado
+```
 
-### `rodolfo-bot/` — El servidor compartido
-Corre en **una sola PC** (la tuya o un VPS). Sirve a todos los usuarios.
-- Bot de Discord: reproduce música en canales de voz
-- API interna (aiohttp): recibe comandos de todos los clientes
-- Búsqueda: Spotify refina el texto → YouTube reproduce el audio
-- TTS en el canal de voz de Discord
-- Sistema de tokens por usuario (`tokens.py` + `tokens.json`)
-- OAuth Spotify personal por usuario (tokens guardados en `tokens.json`)
+### Correr el cliente desde fuente (sin compilar)
+```bash
+cd rodolfo-amigo
+python amigo.py
+```
 
-### `rodolfo-host/` — El motor local (en desarrollo, fusión futura con amigo)
-Capacidades avanzadas que corren **en la PC del usuario**:
-- Control de audio de Windows (volumen, dispositivos de salida)
-- Reproducción local vía Spotify Premium (Spotify API OAuth)
-- TTS local por los parlantes del usuario
-- Control de dispositivos Spotify (celular, parlantes, PC)
+### Compilar Rodo.exe
+```powershell
+# Primero cerrar cualquier Rodo.exe abierto:
+Get-Process Rodo -ErrorAction SilentlyContinue | Stop-Process -Force
+
+cd rodolfo-amigo
+pyinstaller rodo.spec --noconfirm
+# Salida: dist\Rodo.exe (~66 MB, autocontenido, sin Python requerido)
+```
+
+### Publicar una release (requiere permiso explícito)
+```powershell
+# 1. Bumpar version.py y version.json a vX.Y.Z
+# 2. Compilar (ver arriba)
+# 3. Commit + push
+# 4. Publicar en GitHub:
+.\actualizar_release.ps1 -Token "ghp_..." -Tag "vX.Y.Z" -Notes "changelog"
+```
+
+### Ver logs del cliente en tiempo real
+```powershell
+Get-Content "$env:LOCALAPPDATA\Rodo\rodo_voice.log" -Wait -Tail 50
+```
+
+### Matar procesos del bot si se cuelga
+```powershell
+# Ver qué está usando el puerto 5000:
+netstat -ano | findstr :5000
+Stop-Process -Id <PID> -Force
+```
 
 ---
 
-## Arquitectura de contexto
+## Arquitectura del sistema
 
-Cuando Rodo recibe un comando de música, decide a dónde enviarlo:
+```
+rodolfo-amigo/    ← cliente instalado en cada PC de usuario → Rodo.exe
+rodolfo-bot/      ← servidor compartido (Discord bot + HTTP API)
+rodolfo-host/     ← motor local en desarrollo (volumen, Spotify local)
+```
+
+### `rodolfo-amigo/` — El cliente
+
+**Punto de entrada:** `amigo.py` — loop de escucha de micrófono.
+
+Flujo interno por iteración:
+1. `adjust_for_ambient_noise` (0.2s) → cap `energy_threshold` a 3500
+2. `recognizer.listen(timeout=10, phrase_time_limit=7)`
+3. Google STT → texto
+4. Detecta activador "rodo" → si hay comando → `_speak_local_bg("lo tengo")` al confirmar envío; si solo "Rodo" solo → `_speak_local_bg("dime")`
+5. `orchestrator.decide()` → `Action` con handler: `"discord"` | `"local"` | `"local_media"` | `"ask"` | `"oauth"` | `"ignore"`
+6. Handler `"discord"` → `_send_command_full()` → `POST /command` al bot
+
+Módulos en `rodolfo-amigo/`:
+| Archivo | Rol |
+|---|---|
+| `amigo.py` | Entrada, loop STT, routing, TTS local |
+| `orchestrator.py` | Singleton de estado de sesión + `decide()` |
+| `command_parser.py` | **Copia** del parser del bot — debe mantenerse en sync con `rodolfo-bot/command_parser.py` |
+| `overlay.py` | Ventana flotante de estado (tkinter) |
+| `tray.py` | Ícono en bandeja del sistema (pystray) |
+| `config_manager.py` | Lee/escribe `config.json` en `%LOCALAPPDATA%\Rodo\` |
+| `setup_gui.py` | Setup de primera vez (URL del bot + token) |
+| `updater.py` | Auto-update desde GitHub Releases |
+| `version.py` / `version.json` | Versión actual + URL de descarga |
+
+**⚠️ Hay DOS copias de `command_parser.py`:** una en `rodolfo-amigo/` (va al exe) y otra en `rodolfo-bot/` (usa el servidor). Cualquier cambio al parser **debe aplicarse en ambos archivos.**
+
+**Extracción del exe:** `rodo.spec` usa `runtime_tmpdir="%LOCALAPPDATA%\Rodo"` — las carpetas `_MEI*` van ahí, no en `%TEMP%`. Esto es crítico para el updater.
+
+### `rodolfo-bot/` — El servidor compartido
+
+**Punto de entrada:** `bot.py` — inicializa discord.py + levanta el servidor aiohttp.
+
+La API HTTP está en `api_runtime/` (separada en módulos desde la refactorización):
+| Módulo | Endpoints |
+|---|---|
+| `api_runtime/server.py` | Composición, `app`, `auth_middleware` |
+| `api_runtime/command.py` | `POST /command` — despacho principal |
+| `api_runtime/music.py` | `/play`, `/stop`, `/skip`, `/pause`, `/resume`, `/status`, `/volume`, `/disconnect`, `/say`, `/clear_queue`, `/health` |
+| `api_runtime/spotify.py` | `/spotify/login`, `/spotify/callback`, `/me/spotify_status` |
+| `api_runtime/context.py` | `/context`, `/move`, `/discord_auth`, `/discord_refresh` |
+| `api_runtime/admin.py` | `/admin/*` — gestión de usuarios/tokens |
+| `api_runtime/dashboard.py` | `/dashboard` — panel web |
+
+La lógica de música está en `modules/music/`:
+| Archivo | Rol |
+|---|---|
+| `cog.py` | Cog de discord.py con los comandos del bot |
+| `player.py` | Cola de reproducción por guild, yt-dlp, edge-tts |
+| `search.py` | Búsqueda Spotify → YouTube. `_parse_artist_from_query` usa regex greedy para split `"track de artist"` |
+| `sink.py` | AudioSink para captura de audio del canal de voz |
+| `cache/` | SQLite cache de URLs de stream con scoring L1/L2/L3 |
+
+**Config del bot:** variables de entorno en `rodolfo-bot/.env`. Claves importantes:
+- `DISCORD_OWNER_USER_ID`, `DISCORD_GUILD_ID` — IDs del servidor
+- `MUSIC_BOT_PORT` (default 5000), `MUSIC_BOT_HOST`
+- `NGROK_DOMAIN` — dominio fijo de ngrok (no cambia al reiniciar)
+- `TTS_VOICE` — voz de edge-tts (ej: `es-PE-AlexNeural`)
+- `SPOTIFY_CLIENT_ID` + `SPOTIFY_CALLBACK_PORT/HOST`
+
+**Tokens de usuario:** `tokens.json` — `{"<username>": {"token": "...", "name": "...", "active": true, "spotify": {...}}}`. Clave especial `"owner"` para el dueño del bot.
+
+---
+
+## Arquitectura de contexto (routing)
 
 ```
 "Rodo pon flaca"
@@ -62,49 +148,23 @@ Cuando Rodo recibe un comando de música, decide a dónde enviarlo:
   [Orquestador] orchestrator.decide()
   ¿discord_mode es True / False / None?
         │
-   True  ──────────────→ bot Discord (reproduce en canal de voz)
+   True  ──────────────→ POST /command al bot Discord
    False ──────────────→ modo local (Spotify URI o YouTube)
    None  ──────────────→ Pregunta UNA VEZ: "¿Discord o local?"
-                              SÍ Discord → bot entra, reproduce en Discord
-                              NO → reproduce en local
 ```
 
-### Reglas de contexto
-- **Implícito**: Rodo detecta Discord (vía RPC o polling `/context`) y pregunta una vez.
-- **Explícito**: Si el usuario especifica el destino, Rodo ejecuta directo.
-  - *"Rodo entra a Discord"* → `discord_mode = True`
-  - *"Rodo pon X en mis parlantes"* → `discord_mode = False`
-  - *"Rodo cambia al celular"* → Spotify transfiere al móvil
-- **Memoria de sesión**: Una vez elegido el modo, Rodo lo recuerda hasta que el usuario cambie o se cierre.
-- **Reset automático**: Si el usuario sale de un canal de Discord → `discord_mode = False`.  
-  Si vuelve a entrar → `discord_mode = None` (vuelve a preguntar).
+**Reset automático:** salir de un canal de Discord → `discord_mode = False`; volver a entrar → `discord_mode = None` (vuelve a preguntar).
 
 ---
 
 ## Flujo de reproducción local
 
 ```
-"Rodo pon mi álbum 365"
-        │
-        ▼
-  [amigo.py] discord_mode is False → modo local
-        │
-        ▼
-  1. ¿Usuario tiene Spotify OAuth vinculado? (orchestrator.has_spotify)
-     SÍ → search_personal_library("365", spotify_type="album")
-          Busca en playlists + álbumes guardados del usuario
-          Si score ≥ 0.5 → abre Spotify URI directamente ✓
-     NO → continúa al paso 2
-        │
-        ▼
-  2. Busca en Spotify público (api.py → /command?local=true)
-     album/playlist → sp.search(type="album,playlist") con scoring
-     artist → sp.search(type="artist")
-     track → sp.search(type="track")
-     Si URI encontrado → cliente abre URI en Spotify ✓
-        │
-        ▼
-  3. Fallback: YouTube (abre en navegador)
+discord_mode is False
+  → orchestrator.has_spotify?
+      SÍ → search_personal_library() → URI de biblioteca personal (score ≥ 0.5)
+      NO → POST /command?local=true → Spotify público → URI
+  → Fallback: YouTube (abre en navegador)
 ```
 
 ---
@@ -113,66 +173,45 @@ Cuando Rodo recibe un comando de música, decide a dónde enviarlo:
 
 ```
 "Rodo vincula mi Spotify"
-        │
-        ▼
-  [amigo.py] → detecta intent "link_spotify" → abre /spotify/login en bot
-        │
-        ▼
-  [bot] GET /spotify/login?user_token=<token_rodo>
-        → redirige a Spotify OAuth
-        → callback en /spotify/callback?state=<username_key>
-        → guarda {access_token, refresh_token, expires_at} en tokens.json bajo el usuario
-        │
-        ▼
-  [bot] devuelve página HTML de confirmación
-        │
-        ▼
-  [amigo.py] → carga token de la API (/me/spotify_status)
-             → orchestrator.set_spotify_token(access_token)
-             → TTS: "Spotify vinculado"
+  → amigo.py → abre /spotify/login?user_token=<token_rodo>
+  → bot redirige a Spotify OAuth
+  → callback /spotify/callback?state=<username_key>
+  → guarda tokens en tokens.json bajo el usuario
+  → amigo.py carga token vía /me/spotify_status
 ```
-
-### Claves especiales en tokens.json
-- Usuarios normales: `{"token": "...", "name": "...", "active": true, "spotify": {...}}`
-- Dueño del bot (master token): clave `"owner"` — se crea automáticamente al vincular Spotify
-  - `auth_user_key=None` en la API → se usa `"owner"` como clave de lookup
 
 ---
 
-## Cómo agregar una nueva herramienta o habilidad
+## Cómo agregar una nueva habilidad
 
-Cada nueva capacidad de Rodo sigue este patrón:
+1. **Detectar el intent** — en **ambas** copias de `command_parser.py` (`rodolfo-amigo/` y `rodolfo-bot/`):
+   ```python
+   if any(w in cmd for w in ["palabra_clave", "variante"]):
+       return {"action": "nueva_accion", "param": ...}
+   ```
 
-### 1. Definir el módulo
-Crear (o usar) una carpeta en `rodolfo-bot/modules/` o una clase en `rodolfo-host/`:
-```
-rodolfo-bot/modules/
-    music/      ← ya existe: búsqueda + reproducción Discord
-    spotify/    ← próximo: control Spotify Premium local
-    devices/    ← futuro: dispositivos de audio Windows
-```
+2. **Endpoint en el bot** — en `rodolfo-bot/api_runtime/` (el módulo que corresponda):
+   ```python
+   async def http_nueva_accion(request):
+       ...
+   # y registrarlo en api_runtime/server.py
+   ```
 
-### 2. Exponer la acción en la API del bot
-Agregar un endpoint en `rodolfo-bot/api.py`:
-```python
-@app.post("/nombre_accion")
-async def nombre_accion(data: dict, ...):
-    ...
-```
+3. **Routing en el cliente** — `amigo.py` ya envía todo via `/command`. Si necesita lógica local (overlay, TTS, Spotify URI), agregarla antes del envío.
 
-### 3. Registrar el comando en el parser
-Agregar la detección en `rodolfo-bot/command_parser.py`:
-```python
-if any(w in cmd for w in ["palabra_clave", "variante"]):
-    return {"action": "nombre_accion", "param": ...}
-```
+4. **Actualizar este archivo** con el pendiente correspondiente.
 
-### 4. Manejar la acción en el cliente
-En `rodolfo-amigo/amigo.py`, el cliente ya envía todo al bot vía `/command`.
-Si la acción requiere lógica local (overlay, TTS local, etc.), agregarla antes del envío.
+---
 
-### 5. Documentar aquí
-Agregar la herramienta en la sección de componentes y en los pendientes.
+## Flujo de release
+
+1. Hacer los cambios en el código.
+2. **Pedir permiso** para subir versión (Regla 1).
+3. Actualizar `rodolfo-amigo/version.py` y `rodolfo-amigo/version.json`.
+4. Compilar: `pyinstaller rodo.spec --noconfirm` (en `rodolfo-amigo/`).
+5. `git add <archivos específicos> && git commit && git push`
+6. `.\actualizar_release.ps1 -Token "..." -Tag "vX.Y.Z" -Notes "..."`
+7. Los usuarios reciben la actualización automáticamente al abrir Rodo.
 
 ---
 
@@ -195,7 +234,10 @@ Agregar la herramienta en la sección de componentes y en los pendientes.
    - `config.json` ya está en las PCs de los amigos. No cambiar sus campos sin migración.
 
 6. **Respetar el enrutamiento por contexto.**
-   - Nunca hardcodear un destino (Discord o local). Siempre pasar por la lógica de contexto.
+   - Nunca hardcodear un destino (Discord o local). Siempre pasar por `orchestrator.decide()`.
+
+7. **Sincronizar ambas copias del parser.**
+   - Cualquier cambio en `command_parser.py` debe aplicarse tanto en `rodolfo-amigo/` como en `rodolfo-bot/`.
 
 ---
 
@@ -204,26 +246,14 @@ Agregar la herramienta en la sección de componentes y en los pendientes.
 | Componente | Stack |
 |---|---|
 | Cliente (`rodolfo-amigo`) | Python + SpeechRecognition + Google STT + pystray + tkinter + PyInstaller |
-| Orquestador (`orchestrator.py`) | Python puro — sin dependencias externas; listo para Claude API |
+| Orquestador (`orchestrator.py`) | Python puro — sin dependencias externas; punto de extensión para Claude API |
 | Servidor (`rodolfo-bot`) | Python + discord.py + yt-dlp + edge-tts + spotipy + aiohttp + ngrok |
 | Motor local (`rodolfo-host`) | Python + pygame + nircmd + spotipy OAuth + edge-tts |
 | STT | Google STT (principal) — Whisper local (futuro fallback) |
 | Música | Spotify busca metadata → YouTube reproduce audio |
 | Spotify personal | spotipy OAuth — playlists y álbumes del usuario |
 | Tokens | `tokens.json` — un token por usuario, Spotify tokens embebidos |
-| Extracción del exe | `AppData\Local\Rodo\` (estable entre actualizaciones) |
-
----
-
-## Flujo de una actualización
-
-1. Hacer los cambios en el código.
-2. Pedir permiso para subir versión.
-3. Actualizar `version.py` y `version.json` con la nueva versión y changelog.
-4. Compilar: `pyinstaller rodo.spec --noconfirm` (en `rodolfo-amigo/`).
-5. Commit + push.
-6. Ejecutar `actualizar_release.ps1 -Token "..." -Tag "vX.Y.Z" -Notes "..."`.
-7. Los usuarios reciben la actualización automáticamente al abrir Rodo.
+| Extracción del exe | `%LOCALAPPDATA%\Rodo\` (estable entre actualizaciones, no `%TEMP%`) |
 
 ---
 
@@ -235,6 +265,7 @@ Agregar la herramienta en la sección de componentes y en los pendientes.
 - [x] Reset de `discord_mode` al salir/entrar de canal de Discord
 - [ ] Fusión de `rodolfo-host` en `rodolfo-amigo` (un solo exe con todas las capacidades)
 - [ ] Integrar `orchestrator.decide()` con lógica LLM (Claude API) como reemplazo de reglas
+- [ ] Eliminar la duplicación de `command_parser.py` (un solo módulo compartido)
 
 ### Spotify personal
 - [x] OAuth flow completo: vinculación por voz ("Rodo vincula mi Spotify")
@@ -243,13 +274,16 @@ Agregar la herramienta en la sección de componentes y en los pendientes.
 - [ ] Cambio de dispositivo Spotify por voz ("Rodo cambia al celular")
 - [ ] Listar dispositivos de salida por voz ("Rodo qué dispositivos tengo")
 
+### UX y voz
+- [x] Feedback por voz: "dime" al esperar comando, "lo tengo" al confirmar envío
+- [x] "detente" / "stock" / "para" reconocidos como stop
+- [x] Cap de energy_threshold (3500) para que música de fondo no tape la voz del usuario
+- [ ] Control de volumen de Windows por voz
+- [ ] Whisper local (STT sin internet)
+
 ### Música Discord
 - [ ] Ver cola en Discord
 - [ ] Letras de canciones
-
-### Asistente
-- [ ] Control de volumen de Windows por voz
-- [ ] Whisper local (STT sin internet)
 
 ### Infraestructura
 - [ ] Auto-restart del bot si se cae
