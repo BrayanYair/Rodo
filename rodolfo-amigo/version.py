@@ -6,7 +6,7 @@
 #   3. Sube el Rodo.exe nuevo a GitHub Releases
 #   4. Haz git push → los usuarios lo reciben automáticamente al abrir Rodo
 
-VERSION = "1.0.8"
+VERSION = "1.0.9"
 
 # URL del archivo que tiene la versión más reciente (GitHub raw — siempre actualizado)
 UPDATE_CHECK_URL = (
