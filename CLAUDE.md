@@ -325,8 +325,9 @@ discord_mode is False
    - No cambiar `version.py` ni `version.json` sin que el usuario lo pida.
    - No crear releases ni ejecutar `actualizar_release.ps1` sin autorización.
 
-2. **El activador de voz es solo "byarox".**
-   - `ACTIVATOR_NAMES = ("byarox",)` en `amigo.py` y en `modules/parser/normalizer.py` — no agregar otros sin pedirlo.
+2. **El activador de voz es "Rodolfo" (nombre hablado del asistente), no "Byarox".**
+   - Byarox es la marca/app; al asistente se le habla como Rodolfo.
+   - `ACTIVATOR_NAMES = ("oye rodolfo", "rodolfo")` en `amigo.py` y en `modules/parser/normalizer.py` — no agregar otros sin pedirlo.
 
 3. **No hacer commits automáticos.**
    - Solo commitear cuando el usuario lo pida explícitamente.
@@ -379,9 +380,8 @@ discord_mode is False
 - Reset de `discord_mode` al salir/entrar de canal
 
 **Nombre y activador**
-- Renombrado completo: Rodo → Byarox (exe, TTS, STT, shortcuts)
-- Activador: `ACTIVATOR_NAMES = ("byarox",)`
-- Correcciones STT: biarox/biharox/yarox/byaro → byarox
+- Marca/app renombrada: Rodo → Byarox (exe, logos, shortcuts). El asistente se sigue llamando Rodolfo al hablarle.
+- Activador: `ACTIVATOR_NAMES = ("oye rodolfo", "rodolfo")`
 
 **UX de voz**
 - "dime" al esperar comando (solo dijo "Byarox")
