@@ -35,6 +35,15 @@ _SHUFFLE_RE = re.compile(
     r"\b(en\s+modo\s+)?(random|aleatorio|aleatoria|mezcla|mezclar|shuffle|al\s+azar)\b"
 )
 
+_ALIAS_ONLY_ACTIVATOR_RE = re.compile(r"(?<!\w)rodolfo(?!\w)")
+_PRIMARY_ACTIVATOR_RE = re.compile(r"(?<!\w)oye\s+rodolfo(?!\w)")
+_FALLBACK_MUSIC_HINTS = {
+    "pon", "ponme", "pone", "poneme", "coloca", "colocame", "reproduce",
+    "play", "escucha", "escuchemos", "encola", "agrega", "agregame",
+    "playlist", "album", "disco", "musica", "cancion", "canciones",
+    "tema", "temas",
+}
+
 @functools.lru_cache(maxsize=1024)
 def _cached_parse_logic(raw_text: str, require_activator: bool) -> tuple:
     """Ejecuta la lógica de parseo pura y retorna (resultado_dict, list_candidatos) para cacheado."""
@@ -47,6 +56,11 @@ def _cached_parse_logic(raw_text: str, require_activator: bool) -> tuple:
     
     # 2. Activador
     has_activator, cmd_clean = strip_activator(cmd_fixed)
+    alias_only_activator = (
+        has_activator
+        and bool(_ALIAS_ONLY_ACTIVATOR_RE.search(cmd_fixed))
+        and not bool(_PRIMARY_ACTIVATOR_RE.search(cmd_fixed))
+    )
     
     if require_activator and not has_activator:
         return {
@@ -113,7 +127,11 @@ def _cached_parse_logic(raw_text: str, require_activator: bool) -> tuple:
 
     # 8. Fallback Heurístico (reproducción genérica)
     if cmd_clean and len(cmd_clean) > 1:
-        greetings = ("hola", "buenas", "alo", "oye", "hey", "rodolfo", "rodo")
+        greetings = (
+            "hola", "buenas", "alo", "oye", "hey", "rodolfo", "rodo",
+            "ok", "okay", "dale", "listo", "bueno", "si", "sí", "aja",
+            "ajá", "eh",
+        )
         _reject_stop = {"callate", "callense", "calla", "cierra", "silenciate"}
         words_set = ctx.get("words_set", set())
         
@@ -127,6 +145,13 @@ def _cached_parse_logic(raw_text: str, require_activator: bool) -> tuple:
             
         if cmd_clean not in greetings:
             if len(words_set) == 1 and len(cmd_clean) < 4:
+                return {
+                    "action": "unknown",
+                    "normalized_cmd": cmd_clean,
+                    "activator_detected": has_activator
+                }, []
+
+            if alias_only_activator and not (words_set & _FALLBACK_MUSIC_HINTS):
                 return {
                     "action": "unknown",
                     "normalized_cmd": cmd_clean,

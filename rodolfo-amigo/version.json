@@ -1,5 +1,5 @@
 {
-  "version": "1.0.11",
-  "download_url": "https://github.com/BrayanYair/Rodo/releases/download/v1.0.11/Byarox.exe",
-  "changelog": "Rodo pasa a llamarse Byarox (segui hablandole como Rodolfo). Wake word local, VAD, ducking automatico de musica al escuchar y metricas de latencia."
+  "version": "1.0.12",
+  "download_url": "https://github.com/BrayanYair/Rodo/releases/download/v1.0.12/Byarox.exe",
+  "changelog": "Activador actualizado a Oye Rodolfo, respuesta mas rapida, pitido desactivado por defecto y menos falsos positivos al escuchar conversaciones."
 }
