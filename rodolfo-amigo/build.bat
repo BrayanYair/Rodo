@@ -1,11 +1,11 @@
 @echo off
 chcp 65001 >nul 2>&1
-title Construyendo Rodo.exe
+title Construyendo Byarox.exe
 cd /d "%~dp0"
 
 echo.
 echo ════════════════════════════════════════════
-echo   Construyendo Rodo.exe con PyInstaller
+echo   Construyendo Byarox.exe con PyInstaller
 echo ════════════════════════════════════════════
 echo.
 
@@ -22,7 +22,7 @@ pip install SpeechRecognition requests PyAudio python-dotenv --quiet
 
 :: Limpiar builds anteriores
 if exist "build" rmdir /s /q "build"
-if exist "dist\Rodo.exe" del /q "dist\Rodo.exe"
+if exist "dist\Byarox.exe" del /q "dist\Byarox.exe"
 
 :: Construir
 echo.
@@ -31,17 +31,17 @@ echo.
 python -m PyInstaller rodo.spec --clean --noconfirm
 
 echo.
-if exist "dist\Rodo.exe" (
-    for %%A in ("dist\Rodo.exe") do (
+if exist "dist\Byarox.exe" (
+    for %%A in ("dist\Byarox.exe") do (
         set size=%%~zA
     )
     echo ════════════════════════════════════════════
-    echo   Rodo.exe generado en: dist\Rodo.exe
+    echo   Byarox.exe generado en: dist\Byarox.exe
     echo   Comparte ese archivo con tus amigos.
     echo ════════════════════════════════════════════
     explorer dist
 ) else (
-    echo ERROR: No se genero Rodo.exe
+    echo ERROR: No se genero Byarox.exe
     echo Revisa los mensajes de arriba para ver que fallo.
 )
 

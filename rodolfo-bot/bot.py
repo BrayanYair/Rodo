@@ -22,6 +22,45 @@ if sys.platform == "win32":
     except (AttributeError, OSError):
         pass
 
+class Tee:
+    def __init__(self, filename, stream):
+        self.stream = stream
+        self.filename = filename
+
+    def write(self, data):
+        self.stream.write(data)
+        self.stream.flush()
+        if data:
+            try:
+                with open(self.filename, "a", encoding="utf-8", errors="replace") as f:
+                    f.write(data)
+            except Exception:
+                pass
+
+    def flush(self):
+        self.stream.flush()
+
+log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rodo_log.txt")
+try:
+    with open(log_path, "w", encoding="utf-8") as f:
+        f.write(f"--- RODO BOT STARTUP: {os.getpid()} ---\n")
+except Exception:
+    pass
+
+sys.stdout = Tee(log_path, sys.stdout)
+sys.stderr = Tee(log_path, sys.stderr)
+
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        logging.StreamHandler(sys.stderr)
+    ]
+)
+logging.getLogger("discord").setLevel(logging.WARNING)
+
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv

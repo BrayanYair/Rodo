@@ -34,6 +34,18 @@ from .spotify import (
     http_spotify_oauth_url,
     http_spotify_status,
     http_spotify_user_auth,
+    http_spotify_pause,
+    http_spotify_resume,
+)
+from .dashboard import (
+    http_dashboard,
+    http_dashboard_stats,
+    http_dashboard_logs,
+    http_dashboard_cleanup,
+    http_dashboard_cache_list,
+    http_dashboard_cache_delete,
+    http_dashboard_cache_refresh,
+    http_client_log,
 )
 
 load_dotenv()
@@ -74,6 +86,19 @@ async def start_http(bot):
     app.router.add_get("/spotify_oauth_url", http_spotify_oauth_url)
     app.router.add_post("/spotify_user_auth", http_spotify_user_auth)
     app.router.add_get("/me/spotify_status", http_spotify_status)
+    app.router.add_post("/api/spotify/pause", http_spotify_pause)
+    app.router.add_post("/api/spotify/resume", http_spotify_resume)
+
+    # ── Panel de Control (Dashboard) ──────────────────────────────────────────
+    app.router.add_get("/dashboard", _bind_bot(http_dashboard, bot))
+    app.router.add_get("/dashboard/", _bind_bot(http_dashboard, bot))
+    app.router.add_get("/api/dashboard/stats", _bind_bot(http_dashboard_stats, bot))
+    app.router.add_get("/api/dashboard/logs", _bind_bot(http_dashboard_logs, bot))
+    app.router.add_post("/api/dashboard/cleanup", _bind_bot(http_dashboard_cleanup, bot))
+    app.router.add_get("/api/dashboard/cache", _bind_bot(http_dashboard_cache_list, bot))
+    app.router.add_post("/api/dashboard/cache/delete", _bind_bot(http_dashboard_cache_delete, bot))
+    app.router.add_post("/api/dashboard/cache/refresh", _bind_bot(http_dashboard_cache_refresh, bot))
+    app.router.add_post("/api/client_log", _bind_bot(http_client_log, bot))
 
     app.router.add_post("/admin/add_user", http_admin_add_user)
     app.router.add_post("/admin/revoke_user", http_admin_revoke_user)

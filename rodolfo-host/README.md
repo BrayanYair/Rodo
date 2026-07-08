@@ -25,8 +25,8 @@ El controlador que corre en **tu PC** (Windows). Maneja:
 
 | Categoría | Ejemplos |
 |---|---|
-| Música | *"Rodolfo pon despacito"*, *"Rodolfo siguiente"*, *"Rodolfo pausa"* |
-| Volumen | *"Rodolfo sube el volumen"*, *"Rodolfo silencio"* |
-| Dispositivos | *"Rodolfo mostrar dispositivos"*, *"Rodolfo cambia a auriculares"* |
-| Cola | *"Rodolfo después pon X"*, *"Rodolfo limpia la cola"* |
-| Info | *"Rodolfo qué está sonando"* |
+| Música | *"Oye Rodolfo pon despacito"*, *"Oye Rodolfo siguiente"*, *"Oye Rodolfo pausa"* |
+| Volumen | *"Oye Rodolfo sube el volumen"*, *"Oye Rodolfo silencio"* |
+| Dispositivos | *"Oye Rodolfo mostrar dispositivos"*, *"Oye Rodolfo cambia a auriculares"* |
+| Cola | *"Oye Rodolfo después pon X"*, *"Oye Rodolfo limpia la cola"* |
+| Info | *"Oye Rodolfo qué está sonando"* |

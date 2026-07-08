@@ -77,7 +77,7 @@ class TaggedProcess:
 
 
 def main():
-    print(f"{YELLOW}{BOLD}━━━ Rodolfo (Local Dev) ━━━{RESET}")
+    print(f"{YELLOW}{BOLD}=== Rodolfo (Local Dev) ==={RESET}")
     print(f"{GRAY}  Bot: rodolfo-bot/bot.py{RESET}")
     print(f"{GRAY}  Host: rodolfo-host/controller.py{RESET}")
     print()
@@ -97,7 +97,7 @@ def main():
         bot.stop()
         return 1
 
-    print(f"\n{GREEN}{BOLD}✓ Todo arriba.{RESET}  Ctrl+C para detener.\n")
+    print(f"\n{GREEN}{BOLD}[OK] Todo arriba.{RESET}  Ctrl+C para detener.\n")
 
     try:
         while True:

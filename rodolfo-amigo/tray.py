@@ -1,8 +1,8 @@
 """
-tray.py — Ícono de Rodo en la bandeja del sistema (system tray).
+tray.py — Ícono de Byarox en la bandeja del sistema (system tray).
 
-Muestra el logo de Rodo junto al reloj mientras el asistente está activo.
-Click derecho → menú: Mostrar/Ocultar overlay, Cerrar Rodo.
+Muestra el logo de Byarox junto al reloj mientras el asistente está activo.
+Click derecho → menú: Mostrar/Ocultar overlay, Cerrar Byarox.
 """
 
 import os
@@ -49,10 +49,10 @@ def start_tray(overlay=None, on_quit=None):
             pystray.MenuItem("Mostrar overlay",  _show),
             pystray.MenuItem("Ocultar overlay",  _hide),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Cerrar Rodo",      _quit),
+            pystray.MenuItem("Cerrar Byarox",    _quit),
         )
 
-        icon = pystray.Icon("Rodo", img, "Rodo", menu)
+        icon = pystray.Icon("Byarox", img, "Byarox", menu)
 
         t = threading.Thread(target=icon.run, daemon=True, name="rodo-tray")
         t.start()

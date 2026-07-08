@@ -515,10 +515,19 @@ def cleanup_expired():
         """, (now - 30 * 24 * 3600,))
 
         conn.commit()
-        print(f"[CACHE DB] Limpieza: {expired_streams} streams, "
-              f"{deleted_old} queries antiguas, {deleted_low} candidatos de baja conf.")
+        msg = (f"[CACHE DB] Limpieza: {expired_streams} streams, "
+               f"{deleted_old} queries antiguas, {deleted_low} candidatos de baja conf.")
+        print(msg)
+        return {
+            "ok": True,
+            "expired_streams": expired_streams,
+            "deleted_old_queries": deleted_old,
+            "deleted_low_confidence": deleted_low,
+            "message": msg
+        }
     except Exception as e:
         print(f"[CACHE DB] Error en cleanup_expired: {e}")
+        return {"ok": False, "error": str(e)}
     finally:
         conn.close()
 

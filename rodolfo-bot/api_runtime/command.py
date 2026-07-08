@@ -262,7 +262,7 @@ async def http_command(request: web.Request, bot) -> web.Response:
                 "need_spotify_auth": True,
                 "error": (
                     f"Hola {user_name}. Primero tenes que vincular tu cuenta de Spotify. "
-                    "Di 'Rodo vincula mi Spotify'."
+                    "Di 'Oye Rodolfo, vincula mi Spotify'."
                 ),
             })
 
@@ -289,29 +289,37 @@ async def http_command(request: web.Request, bot) -> web.Response:
                     "note": "bot recien conectado - pide repetir",
                 })
 
-            tracks, started_now = await player.add(
-                query,
-                shuffle=parsed.get("shuffle", False),
-                spotify_type=spotify_type,
-                user_token=user_token,
-                user_key=user_key,
-            )
-            if tracks:
-                title = tracks[0]["title"]
-                if spotify_type == "saved_tracks":
-                    label = "guardadas" if not parsed.get("shuffle") else "guardadas en modo aleatorio"
-                    asyncio.ensure_future(player.say(
-                        f"Poniendo tus canciones {label}. Empezando con {title}"
-                    ))
-                elif started_now:
-                    asyncio.ensure_future(player.say(f"Poniendo {title}"))
-                else:
-                    asyncio.ensure_future(player.say(f"Agregado a la cola: {title}"))
+            async def _add_tracks_bg():
+                try:
+                    tracks, started_now = await player.add(
+                        query,
+                        shuffle=parsed.get("shuffle", False),
+                        spotify_type=spotify_type,
+                        user_token=user_token,
+                        user_key=user_key,
+                    )
+                    if tracks:
+                        title = tracks[0]["title"]
+                        if spotify_type == "saved_tracks":
+                            label = "guardadas" if not parsed.get("shuffle") else "guardadas en modo aleatorio"
+                            asyncio.ensure_future(player.say(
+                                f"Poniendo tus canciones {label}. Empezando con {title}"
+                            ))
+                        elif started_now:
+                            asyncio.ensure_future(player.say(f"Poniendo {title}"))
+                        else:
+                            asyncio.ensure_future(player.say(f"Agregado a la cola: {title}"))
+                except Exception as bg_e:
+                    print(f"[COMMAND_BG] Error agregando musica: {bg_e}")
+                    asyncio.ensure_future(player.say("No pude encontrar esa musica."))
+
+            asyncio.create_task(_add_tracks_bg())
             return web.json_response({
                 "ok": True,
                 "action": action,
-                "added": [t["title"] for t in tracks],
-                "started_now": started_now,
+                "accepted": True,
+                "added": [],
+                "started_now": False,
                 "queue_size": len(player.queue),
             })
         except Exception as e:
@@ -365,4 +373,3 @@ async def http_command(request: web.Request, bot) -> web.Response:
         })
 
     return web.json_response({"ok": False, "action": action, "error": "accion no reconocida"})
-

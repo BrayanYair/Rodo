@@ -1,10 +1,11 @@
-# Reglas del Proyecto Rodo
+# Reglas del Proyecto Byarox
 
 ---
 
 ## Visión del producto
 
-Rodo es un **asistente de voz unificado** que se instala en cualquier PC.
+Byarox es un **asistente de voz unificado** que se instala en cualquier PC.
+La marca/app es **Byarox** y el asistente hablado se llama **Rodolfo**.
 Detecta el contexto del usuario y enruta cada comando al módulo correcto,
 sin que el usuario tenga que pensar en qué herramienta usar.
 
@@ -14,7 +15,7 @@ sin que el usuario tenga que pensar en qué herramienta usar.
 
 ### `rodolfo-amigo/` — El cliente (Rodo.exe)
 Lo que instala **cualquier usuario** (vos, amigos, clientes).
-- Escucha el micrófono y detecta el activador "rodo"
+- Escucha el micrófono y detecta el activador "oye rodolfo"
 - Transcribe con Google STT
 - Consulta el contexto al bot (¿estoy en Discord?)
 - Enruta el comando al módulo correcto via `orchestrator.py`
@@ -53,10 +54,10 @@ Capacidades avanzadas que corren **en la PC del usuario**:
 
 ## Arquitectura de contexto
 
-Cuando Rodo recibe un comando de música, decide a dónde enviarlo:
+Cuando Byarox recibe un comando de música, decide a dónde enviarlo:
 
 ```
-"Rodo pon flaca"
+"Oye Rodolfo pon flaca"
         │
         ▼
   [Orquestador] orchestrator.decide()
@@ -70,12 +71,12 @@ Cuando Rodo recibe un comando de música, decide a dónde enviarlo:
 ```
 
 ### Reglas de contexto
-- **Implícito**: Rodo detecta Discord (vía RPC o polling `/context`) y pregunta una vez.
-- **Explícito**: Si el usuario especifica el destino, Rodo ejecuta directo.
-  - *"Rodo entra a Discord"* → `discord_mode = True`
-  - *"Rodo pon X en mis parlantes"* → `discord_mode = False`
-  - *"Rodo cambia al celular"* → Spotify transfiere al móvil
-- **Memoria de sesión**: Una vez elegido el modo, Rodo lo recuerda hasta que el usuario cambie o se cierre.
+- **Implícito**: Byarox detecta Discord (vía RPC o polling `/context`) y pregunta una vez.
+- **Explícito**: Si el usuario especifica el destino, Rodolfo ejecuta directo.
+  - *"Oye Rodolfo entra a Discord"* → `discord_mode = True`
+  - *"Oye Rodolfo pon X en mis parlantes"* → `discord_mode = False`
+  - *"Oye Rodolfo cambia al celular"* → Spotify transfiere al móvil
+- **Memoria de sesión**: Una vez elegido el modo, Byarox lo recuerda hasta que el usuario cambie o se cierre.
 - **Reset automático**: Si el usuario sale de un canal de Discord → `discord_mode = False`.  
   Si vuelve a entrar → `discord_mode = None` (vuelve a preguntar).
 
@@ -84,7 +85,7 @@ Cuando Rodo recibe un comando de música, decide a dónde enviarlo:
 ## Flujo de reproducción local
 
 ```
-"Rodo pon mi álbum 365"
+"Oye Rodolfo pon mi álbum 365"
         │
         ▼
   [amigo.py] discord_mode is False → modo local
@@ -112,7 +113,7 @@ Cuando Rodo recibe un comando de música, decide a dónde enviarlo:
 ## Flujo OAuth Spotify personal
 
 ```
-"Rodo vincula mi Spotify"
+"Oye Rodolfo vincula mi Spotify"
         │
         ▼
   [amigo.py] → detecta intent "link_spotify" → abre /spotify/login en bot
@@ -182,8 +183,9 @@ Agregar la herramienta en la sección de componentes y en los pendientes.
    - No cambiar `version.py` ni `version.json` sin que el usuario lo pida.
    - No crear releases ni ejecutar `actualizar_release.ps1` sin autorización.
 
-2. **El activador de voz es solo "rodo".**
-   - `ACTIVATOR_NAMES = ("rodo",)` — no agregar otros sin pedirlo.
+2. **El activador de voz principal es "oye rodolfo".**
+   - `ACTIVATOR_NAMES = ("oye rodolfo", "rodolfo")`.
+   - No volver a `rodo` ni usar la marca `byarox` como activador sin pedirlo.
 
 3. **No hacer commits automáticos.**
    - Solo commitear cuando el usuario lo pida explícitamente.
@@ -237,11 +239,11 @@ Agregar la herramienta en la sección de componentes y en los pendientes.
 - [ ] Integrar `orchestrator.decide()` con lógica LLM (Codex API) como reemplazo de reglas
 
 ### Spotify personal
-- [x] OAuth flow completo: vinculación por voz ("Rodo vincula mi Spotify")
+- [x] OAuth flow completo: vinculación por voz ("Oye Rodolfo vincula mi Spotify")
 - [x] Búsqueda en biblioteca personal (playlists + álbumes guardados)
 - [x] Soporte multi-usuario: cada amigo vincula su propio Spotify
-- [ ] Cambio de dispositivo Spotify por voz ("Rodo cambia al celular")
-- [ ] Listar dispositivos de salida por voz ("Rodo qué dispositivos tengo")
+- [ ] Cambio de dispositivo Spotify por voz ("Oye Rodolfo cambia al celular")
+- [ ] Listar dispositivos de salida por voz ("Oye Rodolfo qué dispositivos tengo")
 
 ### Música Discord
 - [ ] Ver cola en Discord

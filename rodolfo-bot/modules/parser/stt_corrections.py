@@ -1,32 +1,38 @@
 import re
 
+
 def fix_common_stt_errors(cmd: str) -> str:
-    """Corrige errores frecuentes de reconocimiento de voz (ASR corruption)."""
-    cmd = re.sub(r"\bpom\b",   "pon", cmd)
-    cmd = re.sub(r"\bpong\b",  "pon", cmd)
-    cmd = re.sub(r"\bbong\b",  "pon", cmd)
-    cmd = re.sub(r"\bporn\b",  "pon", cmd)
-    cmd = re.sub(r"\bpum\b",   "pon", cmd)
+    """Corrige errores frecuentes de reconocimiento de voz."""
+    cmd = re.sub(r"\bpom\b", "pon", cmd)
+    cmd = re.sub(r"\bpong\b", "pon", cmd)
+    cmd = re.sub(r"\bbong\b", "pon", cmd)
+    cmd = re.sub(r"\bporn\b", "pon", cmd)
+    cmd = re.sub(r"\bpum\b", "pon", cmd)
     cmd = re.sub(r"\bpomp[oó]n\b", "pon", cmd)
     cmd = re.sub(r"\bpompom\b", "pon", cmd)
-    cmd = re.sub(r"\bpun\b",   "pon", cmd)
-    cmd = re.sub(r"\bstock\b",   "stop", cmd)
-    cmd = re.sub(r"\bdetente\b", "deten", cmd)  # "detente" -> "deten" (stop)
-    cmd = re.sub(r"\bskype\b",   "skip", cmd)
-    
-    # Activadores deformados comunes — variantes de "byarox" que Google STT genera
-    cmd = re.sub(r"\bbiarox\b",  "byarox", cmd)
-    cmd = re.sub(r"\bbiharox\b", "byarox", cmd)
-    cmd = re.sub(r"\byarox\b",   "byarox", cmd)
-    cmd = re.sub(r"\bbyaro\b",   "byarox", cmd)
+    cmd = re.sub(r"\bpun\b", "pon", cmd)
+    cmd = re.sub(r"\bstock\b", "stop", cmd)
+    cmd = re.sub(r"\bdetente\b", "deten", cmd)
+    cmd = re.sub(r"\bskype\b", "skip", cmd)
 
-    # Corregir "para" por "pon" cuando no es una orden de parada
+    # Variantes habituales de "oye rodolfo" en Google STT.
+    cmd = re.sub(r"\boie\s+rodolfo\b", "oye rodolfo", cmd)
+    cmd = re.sub(r"\bque\s+rodolfo\b", "oye rodolfo", cmd)
+    cmd = re.sub(r"\bokay\s+rodolfo\b", "oye rodolfo", cmd)
+    cmd = re.sub(r"\boye\s+redolfo\b", "oye rodolfo", cmd)
+    cmd = re.sub(r"\boye\s+adolfo\b", "oye rodolfo", cmd)
+    cmd = re.sub(r"\bredolfo\b", "rodolfo", cmd)
+    cmd = re.sub(r"\badolfo\b", "rodolfo", cmd)
+    cmd = re.sub(r"\brolfo\b", "rodolfo", cmd)
+    cmd = re.sub(r"\brodolfof\b", "rodolfo", cmd)
+
+    # Corregir "para" por "pon" cuando no es una orden de parada.
     if not re.search(
         r"\bpara\s+(?:la\s+)?(?:musica|cancion|tema|reproduccion|esto|eso|todo)\b", cmd
     ):
         cmd = re.sub(r"\bpara\s+(mi|el|la|un|una|algo|musica\s+de)\b", r"pon \1", cmd)
-        
-    # Limpieza de sufijos redundantes
+
+    # Limpieza de sufijos redundantes.
     cmd = re.sub(r"\s+(?:en|de)\s+(?:spotify|youtube|yt|deezer)\s*$", "", cmd)
     cmd = re.sub(
         r"\s+(?:en|a|por)\s+(?:mis\s+)?"

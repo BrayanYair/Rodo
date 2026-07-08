@@ -107,7 +107,7 @@ async def http_spotify_oauth_url(request: web.Request) -> web.Response:
         "client_id": sp_client_id,
         "response_type": "code",
         "redirect_uri": redirect_uri,
-        "scope": "user-library-read playlist-read-private user-read-private",
+        "scope": "user-library-read playlist-read-private user-read-private user-modify-playback-state user-read-playback-state",
         "state": user_key,
         "show_dialog": "false",
     })
@@ -188,4 +188,42 @@ async def http_spotify_user_auth(request: web.Request) -> web.Response:
     except Exception as e:
         logger.error("[SPOTIFY_OAUTH] Error en http_spotify_user_auth: %s", e)
         return web.json_response({"ok": False, "error": str(e)}, status=500)
+
+
+async def http_spotify_pause(request: web.Request) -> web.Response:
+    """POST /api/spotify/pause - pause the user's Spotify playback on active device."""
+    user_key = request.get("auth_user_key") or "owner"
+    token = await get_valid_user_spotify_token(user_key)
+    if not token:
+        return web.json_response({"ok": False, "error": "Spotify not linked"}, status=400)
+    
+    import spotipy
+    try:
+        # Run spotipy call in executor since it's blocking
+        import asyncio
+        loop = asyncio.get_event_loop()
+        sp = spotipy.Spotify(auth=token)
+        await loop.run_in_executor(None, sp.pause_playback)
+        return web.json_response({"ok": True, "message": "Spotify paused"})
+    except Exception as e:
+        # 403/404 are common if already paused or no active device — fail silently with ok=False
+        return web.json_response({"ok": False, "error": str(e)})
+
+
+async def http_spotify_resume(request: web.Request) -> web.Response:
+    """POST /api/spotify/resume - resume the user's Spotify playback on active device."""
+    user_key = request.get("auth_user_key") or "owner"
+    token = await get_valid_user_spotify_token(user_key)
+    if not token:
+        return web.json_response({"ok": False, "error": "Spotify not linked"}, status=400)
+    
+    import spotipy
+    try:
+        import asyncio
+        loop = asyncio.get_event_loop()
+        sp = spotipy.Spotify(auth=token)
+        await loop.run_in_executor(None, sp.start_playback)
+        return web.json_response({"ok": True, "message": "Spotify resumed"})
+    except Exception as e:
+        return web.json_response({"ok": False, "error": str(e)})
 

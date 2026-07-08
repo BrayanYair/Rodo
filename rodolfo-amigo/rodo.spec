@@ -20,7 +20,23 @@ a = Analysis(
     ["amigo.py"],
     pathex=["."],
     binaries=sr_binaries,
-    datas=sr_datas + [("rodo_logo.ico", "."), ("nircmd.exe", ".")],
+    datas=sr_datas + [
+        ("rodo_logo.ico", "."),
+        ("nircmd.exe", "."),
+        # Clasificador de wake word "byarox"
+        ("modules/wakeword/byarox_verifier.pkl", "modules/wakeword"),
+        # Modelo VAD de Silero (ONNX)
+        ("modules/vad/silero_vad.onnx", "modules/vad"),
+        # __init__.py de paquetes (necesario para imports en modo frozen)
+        ("modules/__init__.py", "modules"),
+        ("modules/wakeword/__init__.py", "modules/wakeword"),
+        ("modules/vad/__init__.py", "modules/vad"),
+        ("modules/audio/__init__.py", "modules/audio"),
+        ("modules/stt/__init__.py", "modules/stt"),
+        ("modules/ducking/__init__.py", "modules/ducking"),
+        ("modules/metrics/__init__.py", "modules/metrics"),
+        ("modules/parser/__init__.py", "modules/parser"),
+    ],
     hiddenimports=sr_hidden + [
         # Audio
         "pyaudio",
@@ -61,13 +77,26 @@ a = Analysis(
         "version",
         "tray",
         "command_parser",
+        # Nuevos módulos (opcionales — fallan silenciosamente si no están)
+        "modules.ducking.ducking_manager",
+        "modules.wakeword.wakeword_engine",
+        "modules.vad.vad_engine",
+        "modules.audio.audio_loop",
+        "modules.stt.stt_engine",
+        "modules.metrics.voice_metrics",
+        "pycaw",
+        "comtypes",
+        # STT fallback: faster-whisper (opcional — falla silenciosamente si no instalado)
+        "faster_whisper",
+        "numpy",
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    # Excluir módulos pesados que no usamos
+    # Excluir módulos pesados que no usamos en el flujo principal.
+    # numpy y scipy se mantienen — los necesitan ducking/wakeword/vad.
     excludes=[
-        "numpy", "scipy", "matplotlib",
+        "matplotlib",
         "pandas", "cv2", "torch", "tensorflow",
         "whisper", "openai",
     ],

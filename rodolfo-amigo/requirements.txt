@@ -6,3 +6,6 @@ pyaudio
 requests
 python-dotenv
 pypresence
+rapidfuzz
+Pillow
+

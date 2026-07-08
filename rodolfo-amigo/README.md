@@ -1,32 +1,27 @@
-# 👥 Rodolfo Amigo
+# Byarox Amigo
 
-Cliente liviano para que **tus amigos** controlen a Rodolfo por voz desde sus propias PCs.
+Cliente liviano para que cualquier usuario controle Byarox por voz desde su PC.
 
-Solo necesita:
-- 🎤 Un micrófono
-- 🌐 Internet
-- 🐍 Python 3.10+
+El usuario le habla al asistente como **Rodolfo**:
 
-**NO** necesita:
-- Token de Discord
-- Acceso al VPS
-- Whisper local
-- Nada pesado
+```text
+Oye Rodolfo, pon despacito
+```
 
-## Cómo funciona
+## Como funciona
 
-1. El amigo dice *"Rodolfo pon despacito"* en su mic.
+1. El usuario dice `Oye Rodolfo` mas el comando.
 2. `amigo.py` transcribe con Google STT.
-3. Envía el texto a Discord vía **webhook**.
-4. El bot en Hetzner detecta el mensaje y reproduce.
+3. El orquestador decide si el comando va a Discord o al modo local.
+4. El bot/cliente reproduce la musica donde corresponda.
 
-## Setup (para el amigo)
+## Setup
 
-1. Recibe la carpeta `rodolfo-amigo` del dueño del bot.
-2. **Doble clic** en `instalar.bat` (solo la primera vez).
-3. Abre `.env` con bloc de notas y rellena:
-   - `DISCORD_WEBHOOK_URL` → te lo da el dueño del bot
-   - `NOMBRE` → cómo quieres que aparezca en Discord
-4. **Doble clic** en `iniciar.bat` cuando quieras usar Rodolfo.
+1. Ejecutar `instalar.bat` o `instalar.pyw` la primera vez.
+2. Completar la configuracion del servidor y nombre de usuario.
+3. Abrir `Rodo.bat` o el ejecutable generado.
+4. Probar: `Oye Rodolfo, pon una cancion`.
 
-Eso es todo. Habla en el mic con *"Rodolfo X"* y reproducirá música en el canal de voz donde esté el bot.
+## Nota
+
+La carpeta y algunos scripts conservan el nombre `Rodo` por compatibilidad. La marca/app es **Byarox**.

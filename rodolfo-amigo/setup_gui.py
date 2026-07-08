@@ -1,21 +1,23 @@
 """
-setup_gui.py — Asistente de configuración visual para Rodo.
+setup_gui.py — Asistente de configuración visual para Byarox con diseño premium 3D.
 
 Se abre automáticamente la primera vez. El usuario no toca ningún archivo.
 """
 
 import tkinter as tk
+from pathlib import Path
+from PIL import Image, ImageTk
 
 from config_manager import save_config, load_config
 
 
 # ─── Tema visual ──────────────────────────────────────────────────────────────
 
-BG       = "#1a1a2e"
-SURFACE  = "#25253a"
+BG       = "#0f0f1a"
+SURFACE  = "#18182b"
 ACCENT   = "#7c6af7"
 ACCENT_H = "#9d8fff"
-TEXT     = "#e2e8f0"
+TEXT     = "#f1f5f9"
 SUBTEXT  = "#94a3b8"
 GREEN    = "#86efac"
 YELLOW   = "#fde68a"
@@ -38,18 +40,129 @@ def _center(win, w, h):
     win.geometry(f"{w}x{h}+{x}+{y}")
 
 
-def _entry(parent, var, show=""):
-    e = tk.Entry(
-        parent, textvariable=var, show=show,
-        bg=SURFACE, fg=TEXT, insertbackground=TEXT,
-        relief="flat", font=F_BODY,
-        highlightthickness=1,
-        highlightbackground="#3a3a5c",
-        highlightcolor=ACCENT,
-    )
-    e.bind("<FocusIn>",  lambda ev: e.config(highlightbackground=ACCENT))
-    e.bind("<FocusOut>", lambda ev: e.config(highlightbackground="#3a3a5c"))
-    return e
+def draw_rounded_rect(canvas, x1, y1, x2, y2, radius, **kwargs):
+    points = [
+        x1 + radius, y1,
+        x1 + radius, y1,
+        x2 - radius, y1,
+        x2 - radius, y1,
+        x2, y1,
+        x2, y1 + radius,
+        x2, y1 + radius,
+        x2, y2 - radius,
+        x2, y2 - radius,
+        x2, y2,
+        x2 - radius, y2,
+        x2 - radius, y2,
+        x1 + radius, y2,
+        x1 + radius, y2,
+        x1, y2,
+        x1, y2 - radius,
+        x1, y2 - radius,
+        x1, y1 + radius,
+        x1, y1 + radius,
+        x1, y1
+    ]
+    return canvas.create_polygon(points, **kwargs, smooth=True)
+
+
+# ─── Widgets Personalizados ───────────────────────────────────────────────────
+
+class RoundedCanvasEntry(tk.Canvas):
+    def __init__(self, parent, textvariable, show="", bg_color=BG, surface_color=SURFACE,
+                 border_color="#2e2e4a", focus_color=ACCENT, radius=10):
+        super().__init__(parent, bg=bg_color, bd=0, highlightthickness=0, height=36)
+        self.textvariable = textvariable
+        self.show = show
+        self.surface_color = surface_color
+        self.border_color = border_color
+        self.focus_color = focus_color
+        self.current_border = border_color
+        self.radius = radius
+
+        self.entry = tk.Entry(
+            self, textvariable=self.textvariable, show=self.show,
+            bg=self.surface_color, fg=TEXT, insertbackground=TEXT,
+            relief="flat", font=F_BODY, bd=0
+        )
+
+        self.bind("<Configure>", self._draw)
+        self.entry.bind("<FocusIn>", self._on_focus_in)
+        self.entry.bind("<FocusOut>", self._on_focus_out)
+
+    def _draw(self, event=None):
+        self.delete("all")
+        w = self.winfo_width()
+        h = self.winfo_height()
+        if w < 10 or h < 10:
+            return
+
+        # Dibuja borde y fondo
+        draw_rounded_rect(self, 0, 0, w, h, self.radius, fill=self.current_border)
+        draw_rounded_rect(self, 1, 1, w-1, h-1, self.radius - 1, fill=self.surface_color)
+
+        # Ubica la caja de texto real adentro
+        self.create_window(12, h//2, window=self.entry, anchor="w", width=w-24)
+
+    def _on_focus_in(self, event):
+        self.current_border = self.focus_color
+        self._draw()
+
+    def _on_focus_out(self, event):
+        self.current_border = self.border_color
+        self._draw()
+
+    def config(self, **kwargs):
+        if "show" in kwargs:
+            self.entry.config(show=kwargs.pop("show"))
+        super().config(**kwargs)
+
+
+class RoundedCanvasButton(tk.Canvas):
+    def __init__(self, parent, text, command, bg_color=BG, btn_color=ACCENT,
+                 hover_color=ACCENT_H, active_color="#5e4ec2", fg="white", radius=10):
+        super().__init__(parent, bg=bg_color, bd=0, highlightthickness=0, height=44, cursor="hand2")
+        self.text = text
+        self.command = command
+        self.btn_color = btn_color
+        self.hover_color = hover_color
+        self.active_color = active_color
+        self.current_color = btn_color
+        self.fg = fg
+        self.radius = radius
+
+        self.bind("<Configure>", self._draw)
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+        self.bind("<ButtonPress-1>", self._on_press)
+        self.bind("<ButtonRelease-1>", self._on_release)
+
+    def _draw(self, event=None):
+        self.delete("all")
+        w = self.winfo_width()
+        h = self.winfo_height()
+        if w < 10 or h < 10:
+            return
+        draw_rounded_rect(self, 0, 0, w, h, self.radius, fill=self.current_color)
+        self.create_text(w//2, h//2, text=self.text, fill=self.fg, font=F_BTN)
+
+    def _on_enter(self, event):
+        self.current_color = self.hover_color
+        self._draw()
+
+    def _on_leave(self, event):
+        self.current_color = self.btn_color
+        self._draw()
+
+    def _on_press(self, event):
+        self.current_color = self.active_color
+        self._draw()
+
+    def _on_release(self, event):
+        self.current_color = self.hover_color
+        self._draw()
+        if self.command:
+            self.command()
 
 
 def _label(parent, text, color=TEXT, font=F_BODY, anchor="w", **kw):
@@ -58,7 +171,7 @@ def _label(parent, text, color=TEXT, font=F_BODY, anchor="w", **kw):
 
 
 def _sep(parent):
-    tk.Frame(parent, bg=SURFACE, height=1).pack(fill="x", pady=6)
+    tk.Frame(parent, bg=SURFACE, height=1).pack(fill="x", pady=8)
 
 
 # ─── Ventana principal ────────────────────────────────────────────────────────
@@ -68,10 +181,10 @@ def run_setup(prefill: dict | None = None) -> dict | None:
     result = None
 
     root = tk.Tk()
-    root.title("Rodo — Configuración")
+    root.title("Byarox - Configuración")
     root.configure(bg=BG)
     root.resizable(True, True)
-    _center(root, 440, 500)
+    _center(root, 440, 560)
 
     # ── Variables ─────────────────────────────────────────────────────────────
     nombre_var    = tk.StringVar(value=pre.get("nombre",    ""))
@@ -100,8 +213,6 @@ def run_setup(prefill: dict | None = None) -> dict | None:
             status_var.set("⚠  Ingresa la contraseña de acceso.")
             return
 
-        # Cargar config existente para preservar campos que no se editan aquí
-        # (discord_id, access_token, etc.) — evita borrarlos al reconfigurar.
         existing = load_config()
         cfg = {
             **existing,
@@ -119,39 +230,44 @@ def run_setup(prefill: dict | None = None) -> dict | None:
         except Exception as e:
             status_var.set(f"⚠  Error: {e}")
 
-    # ── BOTÓN fijo abajo (se empaca PRIMERO para que siempre sea visible) ─────
+    # ── BOTÓN fijo abajo ──────────────────────────────────────────────────────
     bottom = tk.Frame(root, bg=BG)
-    bottom.pack(side="bottom", fill="x", padx=36, pady=(0, 12))
+    bottom.pack(side="bottom", fill="x", padx=36, pady=(0, 16))
 
     tk.Label(bottom, textvariable=status_var, bg=BG,
-             fg=YELLOW, font=F_SMALL).pack(pady=(4, 4))
+             fg=YELLOW, font=F_SMALL).pack(pady=(4, 6))
 
-    btn = tk.Button(
-        bottom, text="Empezar  →", command=_save,
-        bg=ACCENT, fg="white", activebackground=ACCENT_H, activeforeground="white",
-        relief="flat", cursor="hand2", font=F_BTN,
-        padx=28, pady=10, bd=0,
-    )
-    btn.bind("<Enter>", lambda e: btn.config(bg=ACCENT_H))
-    btn.bind("<Leave>", lambda e: btn.config(bg=ACCENT))
+    btn = RoundedCanvasButton(bottom, text="Empezar  →", command=_save)
     btn.pack(fill="x")
 
-    # ── Contenido (se empaca después, ocupa el resto del espacio) ─────────────
+    # ── Contenido ─────────────────────────────────────────────────────────────
     content = tk.Frame(root, bg=BG)
     content.pack(side="top", fill="both", expand=True, padx=36)
 
-    # Header
-    tk.Label(content, text="🎤  Rodo", bg=BG, fg=ACCENT,
-             font=F_TITLE).pack(pady=(16, 2))
+    # Header / Logo
+    logo_path = Path(__file__).parent / "rodo_logo.png"
+    if logo_path.exists():
+        try:
+            img = Image.open(logo_path)
+            img = img.resize((100, 100), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            logo_lbl = tk.Label(content, image=photo, bg=BG)
+            logo_lbl.image = photo  # mantener referencia
+            logo_lbl.pack(pady=(16, 2))
+        except Exception:
+            tk.Label(content, text="🎤  Byarox", bg=BG, fg=ACCENT, font=F_TITLE).pack(pady=(16, 2))
+    else:
+        tk.Label(content, text="🎤  Byarox", bg=BG, fg=ACCENT, font=F_TITLE).pack(pady=(16, 2))
+
     _label(content, "Configuración rápida — solo se hace una vez",
            color=SUBTEXT, font=F_SMALL, anchor="center").pack(pady=(0, 10))
 
     # Tu apodo
     _label(content, "Tu apodo", font=F_HEAD).pack(anchor="w")
-    _label(content, "Cómo quieres que te identifique Rodo",
+    _label(content, "Cómo quieres que te identifique Byarox",
            color=SUBTEXT, font=F_SMALL).pack(anchor="w")
-    nombre_entry = _entry(content, nombre_var)
-    nombre_entry.pack(fill="x", pady=(4, 2), ipady=6)
+    nombre_entry = RoundedCanvasEntry(content, nombre_var)
+    nombre_entry.pack(fill="x", pady=(4, 2))
     _label(content, "Ej: Pepe, El gordo, Camila...",
            color=SUBTEXT, font=F_SMALL).pack(anchor="w", pady=(0, 2))
 
@@ -159,28 +275,28 @@ def run_setup(prefill: dict | None = None) -> dict | None:
 
     # Datos del servidor
     _label(content, "Datos del servidor", font=F_HEAD).pack(anchor="w")
-    info = tk.Frame(content, bg=SURFACE, padx=10, pady=6)
+    info = tk.Frame(content, bg=SURFACE, padx=12, pady=8)
     info.pack(fill="x", pady=(4, 8))
-    tk.Label(info, text="ℹ  El dueño de Rodo te envía estos datos\n   por WhatsApp o Discord.",
+    tk.Label(info, text="ℹ  El dueño de Byarox te envía estos datos\n   por WhatsApp o Discord.",
              bg=SURFACE, fg=SUBTEXT, font=F_SMALL, justify="left").pack(anchor="w")
 
     _label(content, "Dirección del servidor").pack(anchor="w")
-    _entry(content, api_url_var).pack(fill="x", pady=(4, 2), ipady=6)
+    api_url_entry = RoundedCanvasEntry(content, api_url_var)
+    api_url_entry.pack(fill="x", pady=(4, 2))
     _label(content, "Ej: http://45.76.123.200:5000",
            color=SUBTEXT, font=F_SMALL).pack(anchor="w", pady=(0, 6))
 
     _label(content, "Contraseña de acceso").pack(anchor="w")
-    token_entry = _entry(content, api_token_var, show="•")
-    token_entry.pack(fill="x", pady=(4, 2), ipady=6)
+    token_entry = RoundedCanvasEntry(content, api_token_var, show="•")
+    token_entry.pack(fill="x", pady=(4, 2))
 
     def _toggle():
         token_entry.config(show="" if show_var.get() else "•")
     tk.Checkbutton(content, text="Mostrar contraseña", variable=show_var,
                    bg=BG, fg=SUBTEXT, selectcolor=BG,
                    activebackground=BG, activeforeground=SUBTEXT,
-                   font=F_SMALL, command=_toggle).pack(anchor="w", pady=(2, 0))
+                   font=F_SMALL, command=_toggle, bd=0, highlightthickness=0).pack(anchor="w", pady=(4, 0))
 
-    # Enter guarda desde cualquier campo
     root.bind("<Return>", _save)
 
     root.mainloop()

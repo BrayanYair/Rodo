@@ -1,5 +1,5 @@
 """
-instalar.pyw — Instalador gráfico de Rodo.
+instalar.pyw — Instalador gráfico de Byarox.
 
 Extensión .pyw = Windows abre esto con pythonw.exe → CERO consola CMD.
 El usuario solo ve esta ventana. Nada más.
@@ -53,7 +53,7 @@ class InstallerApp:
 
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Rodo — Instalación")
+        self.root.title("Byarox - Instalación")
         self.root.configure(bg=BG)
         self.root.resizable(False, False)
         _center(self.root, 420, 400)
@@ -67,7 +67,7 @@ class InstallerApp:
 
     def _build_ui(self):
         # Header
-        tk.Label(self.root, text="🎤  Rodo", bg=BG, fg=ACCENT,
+        tk.Label(self.root, text="🎤  Byarox", bg=BG, fg=ACCENT,
                  font=F_BIG).pack(pady=(28, 4))
         self.subtitle = tk.Label(self.root,
                                  text="Instalando lo necesario...",
@@ -114,7 +114,7 @@ class InstallerApp:
 
         # Botón (oculto hasta terminar)
         self.btn = tk.Button(
-            self.root, text="Abrir Rodo  →",
+            self.root, text="Abrir Byarox  →",
             bg=ACCENT, fg="white",
             activebackground=ACCENT_H, activeforeground="white",
             relief="flat", cursor="hand2", font=F_BTN,
@@ -210,12 +210,12 @@ class InstallerApp:
             self.subtitle.config(text="¡Todo listo!", fg=GREEN)
             self.status_var.set("")
             self.progress.config(value=100)
-            self.btn.config(text="Abrir Rodo  →", bg=ACCENT)
+            self.btn.config(text="Abrir Byarox  →", bg=ACCENT)
         else:
             self.subtitle.config(
                 text=f"Algunos componentes fallaron: {', '.join(failed)}", fg=YELLOW)
             self.status_var.set("Puedes intentar abrirlo de todas formas.")
-            self.btn.config(text="Abrir Rodo de todas formas  →", bg="#5a5490")
+            self.btn.config(text="Abrir Byarox de todas formas  →", bg="#5a5490")
 
         self.btn.pack(pady=(16, 28))
 

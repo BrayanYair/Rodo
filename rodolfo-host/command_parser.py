@@ -11,7 +11,7 @@ porque solo aplican a la PC del dueño.
 import re
 import unicodedata
 
-ACTIVATOR_NAMES = ("rodo",)
+ACTIVATOR_NAMES = ("oye rodolfo", "rodolfo")
 
 
 # ─── Normalización ─────────────────────────────────────────────────────────────
@@ -25,8 +25,8 @@ def normalize(cmd: str) -> str:
 def strip_activator(cmd: str):
     """Returns (has_activator, cmd_sin_activador).
     Acepta el activador al inicio, en medio o al final de la frase."""
-    names_re = "|".join(ACTIVATOR_NAMES)
-    activator_re = re.compile(rf"\b(?:{names_re})\b[,\s]*")
+    names_re = "|".join(re.escape(name) for name in sorted(ACTIVATOR_NAMES, key=len, reverse=True))
+    activator_re = re.compile(rf"(?<!\w)(?:{names_re})(?!\w)[,\s]*")
     m = activator_re.search(cmd)
     if m:
         after  = cmd[m.end():].strip()
@@ -216,7 +216,7 @@ def full_parse(raw_text: str, require_activator: bool = True):
     # Fallback: si tiene activador y no es comando conocido, intentar como play_music
     # SOLO si no contiene palabras de rechazo/insulto
     if cmd and len(cmd) > 1:
-        greetings = ("hola", "buenas", "alo", "oye", "hey", "rodo")
+        greetings = ("hola", "buenas", "alo", "oye", "hey", "rodolfo")
         _reject_stop   = {"callate", "callense", "calla", "cierra", "silenciate"}
         _reject_ignore = {
             "maldito", "maldita", "idiota", "bruto", "bobo",

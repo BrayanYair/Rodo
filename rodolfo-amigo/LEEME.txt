@@ -1,77 +1,54 @@
-╔══════════════════════════════════════════════════════════════╗
-║                    🎤  RODO  🎤                               ║
-║             Asistente de música por voz                      ║
-╚══════════════════════════════════════════════════════════════╝
+BYAROX - Asistente de musica por voz
+====================================
 
-¿Qué es esto?
-─────────────
-Rodo es un asistente que controla la música con tu voz.
-Di "Rodo pon despacito" y la canción empieza a sonar
-en el canal de Discord donde esté el bot.
+Que es
+------
+Byarox controla musica con tu voz. Al asistente le hablas como Rodolfo.
 
-NO necesitas:
-   ✗ Saber programar
-   ✗ Tocar ningún archivo de configuración
-   ✗ Ningún permiso especial de Discord
+Frase principal:
 
-SÍ necesitas:
-   ✓ Micrófono (cualquiera)
-   ✓ Internet
-   ✓ La dirección y contraseña del servidor (te la da el dueño)
+  "Oye Rodolfo, pon despacito"
 
+Primeros pasos
+--------------
+1. Doble clic en "instalar.pyw" o "instalar.bat".
+2. Abre "Rodo.bat" o el ejecutable de Byarox.
+3. Completa tu apodo y los datos del servidor que te da el dueno.
+4. Prueba un comando de voz.
 
-📋 PRIMEROS PASOS (solo la primera vez):
-─────────────────────────────────────────
-1. Doble clic en "instalar.pyw"
-   Se abre una ventana que instala todo automáticamente.
-   (Si no abre, usa instalar.bat como alternativa)
+Comandos utiles
+---------------
+  "Oye Rodolfo, pon [cancion o artista]"
+  "Oye Rodolfo, siguiente"
+  "Oye Rodolfo, pausa"
+  "Oye Rodolfo, sigue"
+  "Oye Rodolfo, para la musica"
+  "Oye Rodolfo, que esta sonando"
+  "Oye Rodolfo, vincula mi Spotify"
 
-2. Doble clic en "Rodo.bat"
-   Se abre una ventana de configuración donde pones:
-     • Tu apodo (como quieres que te llame Rodo)
-     • La dirección del servidor  ─┐ El dueño de Rodo
-     • La contraseña de acceso   ─┘ te las manda
+Tip
+---
+Puedes decir solo "Oye Rodolfo" y esperar. Cuando responda "dime",
+di el comando sin repetir el nombre durante los siguientes segundos.
 
-3. Clic en "Empezar" y ¡listo! Ya puedes hablar.
-
-
-🎮 DÍA A DÍA:
-─────────────
-   Doble clic en "Rodo.bat" y empieza a hablar.
-   Para cerrar: Ctrl+C o cierra la ventana.
-
-
-🗣 COMANDOS DE VOZ:
-───────────────────
-   "Rodo pon [canción o artista]"
-   "Rodo siguiente"
-   "Rodo pausa"
-   "Rodo sigue"
-   "Rodo para la música"
-   "Rodo qué está sonando"
-
-   Tip: puedes decir solo "Rodo" y esperar, después
-   di el comando sin repetir el nombre (tienes 6 segundos).
-
-
-❓ PROBLEMAS COMUNES:
-────────────────────
+Problemas comunes
+-----------------
 "No me entiende"
-  → Habla más claro y di "Rodo" al principio
-  → Reduce el ruido de fondo
+  - Habla mas claro y di "Oye Rodolfo" al principio.
+  - Reduce el ruido de fondo.
 
 "No reproduce nada"
-  → El servidor de Rodo tiene que estar encendido
-  → Verifica con el dueño que el bot esté activo
+  - El servidor de Byarox tiene que estar encendido.
+  - Verifica con el dueno que el bot este activo.
 
-"Error de conexión"
-  → Verifica que la dirección del servidor sea correcta
-  → Puede que el servidor esté apagado temporalmente
+"Error de conexion"
+  - Verifica que la direccion del servidor sea correcta.
+  - Puede que el servidor este apagado temporalmente.
 
-"Quiero cambiar mi apodo o la dirección"
-  → Abre Rodo.bat y escribe: config
+"Quiero cambiar mi apodo o la direccion"
+  - Abre Rodo.bat y escribe: config
 
-
-╔══════════════════════════════════════════════════════════════╗
-║         Si algo no va, avísale al dueño de Rodo.            ║
-╚══════════════════════════════════════════════════════════════╝
+Nota
+----
+Algunos archivos todavia se llaman Rodo o rodolfo-* por compatibilidad.
+La marca/app es Byarox y el asistente hablado es Rodolfo.

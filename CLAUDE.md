@@ -6,9 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Visión del producto
 
-Rodo es un **asistente de voz unificado** que se instala en cualquier PC.
+**Byarox** es un asistente de voz unificado que se instala en cualquier PC.
 Detecta el contexto del usuario y enruta cada comando al módulo correcto,
 sin que el usuario tenga que pensar en qué herramienta usar.
+El activador de voz es la palabra **"Byarox"** (nombre del proyecto + del wake word).
 
 ---
 
@@ -34,14 +35,30 @@ cd rodolfo-amigo
 python amigo.py
 ```
 
-### Compilar Rodo.exe
+### Entrenar el clasificador de wake word
+```bash
+cd rodolfo-amigo
+python -m modules.wakeword.train_byarox
+# Genera: modules/wakeword/byarox_verifier.pkl
+# Requiere: edge-tts, ffmpeg, openwakeword, sklearn
+```
+
+### Correr tests de los nuevos módulos
+```bash
+cd rodolfo-amigo
+python tests/test_vad.py       # 6 tests — SileroVAD + SpeechSegmenter
+python tests/test_ducking.py   # 5 tests — DuckingManager
+python tests/test_wakeword.py  # 7 tests — WakeWordEngine + verifier pkl
+```
+
+### Compilar Byarox.exe
 ```powershell
-# Primero cerrar cualquier Rodo.exe abierto:
-Get-Process Rodo -ErrorAction SilentlyContinue | Stop-Process -Force
+# Primero cerrar cualquier Byarox.exe abierto:
+Get-Process Byarox -ErrorAction SilentlyContinue | Stop-Process -Force
 
 cd rodolfo-amigo
 pyinstaller rodo.spec --noconfirm
-# Salida: dist\Rodo.exe (~66 MB, autocontenido, sin Python requerido)
+# Salida: dist\Byarox.exe (autocontenido, sin Python requerido)
 ```
 
 ### Publicar una release (requiere permiso explícito)
@@ -60,7 +77,6 @@ Get-Content "$env:LOCALAPPDATA\Rodo\rodo_voice.log" -Wait -Tail 50
 
 ### Matar procesos del bot si se cuelga
 ```powershell
-# Ver qué está usando el puerto 5000:
 netstat -ano | findstr :5000
 Stop-Process -Id <PID> -Force
 ```
@@ -70,45 +86,95 @@ Stop-Process -Id <PID> -Force
 ## Arquitectura del sistema
 
 ```
-rodolfo-amigo/    ← cliente instalado en cada PC de usuario → Rodo.exe
+rodolfo-amigo/    ← cliente instalado en cada PC → Byarox.exe
 rodolfo-bot/      ← servidor compartido (Discord bot + HTTP API)
 rodolfo-host/     ← motor local en desarrollo (volumen, Spotify local)
 ```
 
 ### `rodolfo-amigo/` — El cliente
 
-**Punto de entrada:** `amigo.py` — loop de escucha de micrófono.
+**Punto de entrada:** `amigo.py` — loop principal de escucha.
 
-Flujo interno por iteración:
-1. `adjust_for_ambient_noise` (0.2s) → cap `energy_threshold` a 3500
-2. `recognizer.listen(timeout=10, phrase_time_limit=7)`
-3. Google STT → texto
-4. Detecta activador "rodo" → si hay comando → `_speak_local_bg("lo tengo")` al confirmar envío; si solo "Rodo" solo → `_speak_local_bg("dime")`
-5. `orchestrator.decide()` → `Action` con handler: `"discord"` | `"local"` | `"local_media"` | `"ask"` | `"oauth"` | `"ignore"`
-6. Handler `"discord"` → `_send_command_full()` → `POST /command` al bot
+#### Flujo interno (arquitectura actual — v1.0.11)
 
-Módulos en `rodolfo-amigo/`:
+```
+[Hilo daemon] WakeWordEngine
+  PyAudio 16kHz → openwakeword embeddings → byarox_verifier.pkl
+  → score ≥ 0.5 → loguea detección offline
+  → _is_speaking activo → ignorar (anti-feedback TTS)
+
+[Loop principal] amigo.py
+  adjust_for_ambient_noise (0.2s) → cap energy_threshold=3500
+  recognizer.listen(timeout=10, phrase_time_limit=7)
+  → Google STT → texto
+  → STT corrections (biarox/biharox/yarox → byarox)
+  → has_activator("byarox") → extraer comando
+  → solo "Byarox" → _speak_local_bg("dime") + ventana 6s
+  → "Byarox + comando" → orchestrator.decide()
+      → handler "discord"     → POST /command al bot → "lo tengo"
+      → handler "local"       → Spotify URI / YouTube
+      → handler "local_media" → tecla multimedia
+      → handler "oauth"       → flujo OAuth Spotify
+      → handler "ask"         → preguntar Discord o local
+      → handler "ignore"      → nada
+
+[Al detectar activador]
+  _mute_system():
+    → _duck_mgr.duck()  (pycaw: Spotify/Chrome/etc. → 15%)
+    → fallback nircmd si pycaw no disponible
+    → _spotify_pause() via API (Spotify Connect remoto)
+
+[Al terminar de procesar]
+  _unmute_system():
+    → _duck_mgr.restore()  (fade-in a volumen original)
+    → _spotify_resume() si corresponde
+```
+
+#### Módulos principales en `rodolfo-amigo/`
+
 | Archivo | Rol |
 |---|---|
 | `amigo.py` | Entrada, loop STT, routing, TTS local |
 | `orchestrator.py` | Singleton de estado de sesión + `decide()` |
-| `command_parser.py` | **Copia** del parser del bot — debe mantenerse en sync con `rodolfo-bot/command_parser.py` |
+| `command_parser.py` | **Copia** del parser del bot — sincronizar siempre |
 | `overlay.py` | Ventana flotante de estado (tkinter) |
 | `tray.py` | Ícono en bandeja del sistema (pystray) |
 | `config_manager.py` | Lee/escribe `config.json` en `%LOCALAPPDATA%\Rodo\` |
-| `setup_gui.py` | Setup de primera vez (URL del bot + token) |
+| `setup_gui.py` | Setup de primera vez |
 | `updater.py` | Auto-update desde GitHub Releases |
 | `version.py` / `version.json` | Versión actual + URL de descarga |
 
+#### Nuevos módulos de voz (`rodolfo-amigo/modules/`)
+
+| Módulo | Archivo | Rol |
+|---|---|---|
+| **parser** | `modules/parser/` | Normalizador, correcciones STT, fuzzy, parser de intents |
+| **wakeword** | `modules/wakeword/wakeword_engine.py` | Detector siempre-activo: PyAudio 16kHz → openwakeword embeddings → sklearn pkl |
+| **wakeword** | `modules/wakeword/train_byarox.py` | Entrena `byarox_verifier.pkl` con edge-tts + ffmpeg + LogisticRegression |
+| **wakeword** | `modules/wakeword/byarox_verifier.pkl` | Clasificador entrenado (4 voces, acc=100%, P(byarox\|pos)=0.997) |
+| **vad** | `modules/vad/vad_engine.py` | Silero VAD (ONNX 16kHz, 512 samples, stateful h/c) + SpeechSegmenter |
+| **ducking** | `modules/ducking/ducking_manager.py` | pycaw: fade Spotify/Chrome/Firefox/Edge a 15% al escuchar, restaurar al terminar |
+| **metrics** | `modules/metrics/voice_metrics.py` | Mide latencias: wakeword_ms, ducking_ms, stt_ms, ttfa_ms |
+
+#### Tests (`rodolfo-amigo/tests/`)
+
+| Archivo | Tests | Estado |
+|---|---|---|
+| `test_vad.py` | 6 | ✅ todos pasan |
+| `test_ducking.py` | 5 | ✅ todos pasan |
+| `test_wakeword.py` | 7 | ✅ todos pasan |
+
 **⚠️ Hay DOS copias de `command_parser.py`:** una en `rodolfo-amigo/` (va al exe) y otra en `rodolfo-bot/` (usa el servidor). Cualquier cambio al parser **debe aplicarse en ambos archivos.**
 
-**Extracción del exe:** `rodo.spec` usa `runtime_tmpdir="%LOCALAPPDATA%\Rodo"` — las carpetas `_MEI*` van ahí, no en `%TEMP%`. Esto es crítico para el updater.
+**Extracción del exe:** `rodo.spec` usa `runtime_tmpdir="%LOCALAPPDATA%\Rodo"` — las carpetas `_MEI*` van ahí. Crítico para el updater.
+
+---
 
 ### `rodolfo-bot/` — El servidor compartido
 
 **Punto de entrada:** `bot.py` — inicializa discord.py + levanta el servidor aiohttp.
 
-La API HTTP está en `api_runtime/` (separada en módulos desde la refactorización):
+La API HTTP está en `api_runtime/`:
 | Módulo | Endpoints |
 |---|---|
 | `api_runtime/server.py` | Composición, `app`, `auth_middleware` |
@@ -119,30 +185,30 @@ La API HTTP está en `api_runtime/` (separada en módulos desde la refactorizaci
 | `api_runtime/admin.py` | `/admin/*` — gestión de usuarios/tokens |
 | `api_runtime/dashboard.py` | `/dashboard` — panel web |
 
-La lógica de música está en `modules/music/`:
+La lógica de música en `modules/music/`:
 | Archivo | Rol |
 |---|---|
 | `cog.py` | Cog de discord.py con los comandos del bot |
 | `player.py` | Cola de reproducción por guild, yt-dlp, edge-tts |
-| `search.py` | Búsqueda Spotify → YouTube. `_parse_artist_from_query` usa regex greedy para split `"track de artist"` |
+| `search.py` | Búsqueda Spotify → YouTube |
 | `sink.py` | AudioSink para captura de audio del canal de voz |
 | `cache/` | SQLite cache de URLs de stream con scoring L1/L2/L3 |
 
-**Config del bot:** variables de entorno en `rodolfo-bot/.env`. Claves importantes:
-- `DISCORD_OWNER_USER_ID`, `DISCORD_GUILD_ID` — IDs del servidor
+**Config del bot:** variables en `rodolfo-bot/.env`:
+- `DISCORD_OWNER_USER_ID`, `DISCORD_GUILD_ID`
 - `MUSIC_BOT_PORT` (default 5000), `MUSIC_BOT_HOST`
-- `NGROK_DOMAIN` — dominio fijo de ngrok (no cambia al reiniciar)
+- `NGROK_DOMAIN` — dominio fijo de ngrok
 - `TTS_VOICE` — voz de edge-tts (ej: `es-PE-AlexNeural`)
 - `SPOTIFY_CLIENT_ID` + `SPOTIFY_CALLBACK_PORT/HOST`
 
-**Tokens de usuario:** `tokens.json` — `{"<username>": {"token": "...", "name": "...", "active": true, "spotify": {...}}}`. Clave especial `"owner"` para el dueño del bot.
+**Tokens de usuario:** `tokens.json` — `{"<username>": {"token": "...", "name": "...", "active": true, "spotify": {...}}}`.
 
 ---
 
 ## Arquitectura de contexto (routing)
 
 ```
-"Rodo pon flaca"
+"Byarox pon flaca"
         │
         ▼
   [Orquestador] orchestrator.decide()
@@ -153,7 +219,7 @@ La lógica de música está en `modules/music/`:
    None  ──────────────→ Pregunta UNA VEZ: "¿Discord o local?"
 ```
 
-**Reset automático:** salir de un canal de Discord → `discord_mode = False`; volver a entrar → `discord_mode = None` (vuelve a preguntar).
+**Reset automático:** salir de canal de voz → `discord_mode = False`; volver a entrar → `discord_mode = None`.
 
 ---
 
@@ -162,7 +228,7 @@ La lógica de música está en `modules/music/`:
 ```
 discord_mode is False
   → orchestrator.has_spotify?
-      SÍ → search_personal_library() → URI de biblioteca personal (score ≥ 0.5)
+      SÍ → búsqueda en biblioteca personal (score ≥ 0.5)
       NO → POST /command?local=true → Spotify público → URI
   → Fallback: YouTube (abre en navegador)
 ```
@@ -172,46 +238,84 @@ discord_mode is False
 ## Flujo OAuth Spotify personal
 
 ```
-"Rodo vincula mi Spotify"
-  → amigo.py → abre /spotify/login?user_token=<token_rodo>
-  → bot redirige a Spotify OAuth
-  → callback /spotify/callback?state=<username_key>
-  → guarda tokens en tokens.json bajo el usuario
+"Byarox vincula mi Spotify"
+  → abre /spotify/login en el bot
+  → Spotify OAuth → callback local
+  → guarda tokens en tokens.json
   → amigo.py carga token vía /me/spotify_status
 ```
 
 ---
 
+## Detalles técnicos de los módulos nuevos
+
+### WakeWordEngine (`modules/wakeword/`)
+
+**Dos modos:**
+- **Verifier** (si existe `byarox_verifier.pkl`): `audio → oww_model.predict() → preprocessor.get_features(16) → shape(1,16,96) → flatten(1,1536) → LogisticRegression → proba clase 1`
+- **Fallback** (sin pkl): usa score nativo de `hey_jarvis_v0.1` con threshold 0.3
+
+**Entrenamiento del pkl:**
+- 40 positivos: edge-tts (4 voces × 3 velocidades × frases con "byarox") → mp3 → ffmpeg → WAV 16kHz
+- 40 negativos: silencio puro + ruido gaussiano
+- Pipeline: `StandardScaler + LogisticRegression(C=1, balanced)`
+- Resultado: acc=100%, P(byarox|pos)=0.997, P(byarox|neg)=0.002
+
+**Integración en amigo.py:**
+- Corre en hilo daemon desde el inicio de `main()`
+- Callback `_on_wakeword` loguea la detección y actualiza `_ww_last_fire`
+- Si `_is_speaking` está activo (TTS hablando) → ignora la detección (anti-feedback)
+- Si falla (sin openwakeword, conflicto de mic) → falla silenciosamente
+
+### DuckingManager (`modules/ducking/`)
+
+- Busca sesiones de audio de Spotify/Chrome/Firefox/Edge via `pycaw.AudioUtilities`
+- `duck()`: fade-out a 15% en ~120ms (hilo daemon)
+- `restore()`: fade-in a volumen original en ~300ms
+- Fallback: volumen maestro si no hay sesiones multimedia
+- En amigo.py: reemplaza `nircmd mutesysvolume` en `_mute_system()` / `_unmute_system()`
+
+### SileroVAD (`modules/vad/`)
+
+- Modelo ONNX (`silero_vad.onnx`, ~2 MB, se descarga automáticamente)
+- Inputs: `input[1,512]`, `sr`, `h[2,1,64]`, `c[2,1,64]` (stateful)
+- `SpeechSegmenter`: acumula chunks de 512 samples, retorna segmento completo tras 1200ms de silencio o 7s máximo
+
+### Anti-feedback TTS
+
+`_is_speaking = threading.Event()` — activo mientras `_speak_local` reproduce. Evita que el WakeWordEngine o el STT detecten la propia voz del asistente como un nuevo comando.
+
+---
+
 ## Cómo agregar una nueva habilidad
 
-1. **Detectar el intent** — en **ambas** copias de `command_parser.py` (`rodolfo-amigo/` y `rodolfo-bot/`):
+1. **Detectar el intent** — en **ambas** copias de `command_parser.py`:
    ```python
    if any(w in cmd for w in ["palabra_clave", "variante"]):
        return {"action": "nueva_accion", "param": ...}
    ```
 
-2. **Endpoint en el bot** — en `rodolfo-bot/api_runtime/` (el módulo que corresponda):
+2. **Endpoint en el bot** — en `rodolfo-bot/api_runtime/`:
    ```python
-   async def http_nueva_accion(request):
-       ...
-   # y registrarlo en api_runtime/server.py
+   async def http_nueva_accion(request): ...
+   # Registrar en api_runtime/server.py
    ```
 
-3. **Routing en el cliente** — `amigo.py` ya envía todo via `/command`. Si necesita lógica local (overlay, TTS, Spotify URI), agregarla antes del envío.
+3. **Routing en el cliente** — `amigo.py` envía todo via `/command`. Lógica local antes del envío si hace falta.
 
-4. **Actualizar este archivo** con el pendiente correspondiente.
+4. **Actualizar este archivo.**
 
 ---
 
 ## Flujo de release
 
-1. Hacer los cambios en el código.
+1. Hacer los cambios.
 2. **Pedir permiso** para subir versión (Regla 1).
 3. Actualizar `rodolfo-amigo/version.py` y `rodolfo-amigo/version.json`.
 4. Compilar: `pyinstaller rodo.spec --noconfirm` (en `rodolfo-amigo/`).
 5. `git add <archivos específicos> && git commit && git push`
 6. `.\actualizar_release.ps1 -Token "..." -Tag "vX.Y.Z" -Notes "..."`
-7. Los usuarios reciben la actualización automáticamente al abrir Rodo.
+7. Los usuarios reciben la actualización al abrir Byarox.
 
 ---
 
@@ -221,8 +325,8 @@ discord_mode is False
    - No cambiar `version.py` ni `version.json` sin que el usuario lo pida.
    - No crear releases ni ejecutar `actualizar_release.ps1` sin autorización.
 
-2. **El activador de voz es solo "rodo".**
-   - `ACTIVATOR_NAMES = ("rodo",)` — no agregar otros sin pedirlo.
+2. **El activador de voz es solo "byarox".**
+   - `ACTIVATOR_NAMES = ("byarox",)` en `amigo.py` y en `modules/parser/normalizer.py` — no agregar otros sin pedirlo.
 
 3. **No hacer commits automáticos.**
    - Solo commitear cuando el usuario lo pida explícitamente.
@@ -239,6 +343,10 @@ discord_mode is False
 7. **Sincronizar ambas copias del parser.**
    - Cualquier cambio en `command_parser.py` debe aplicarse tanto en `rodolfo-amigo/` como en `rodolfo-bot/`.
 
+8. **Los módulos nuevos son opcionales.**
+   - `wakeword`, `vad`, `ducking`, `metrics` deben fallar silenciosamente si faltan deps.
+   - Nunca romper el flujo STT principal por culpa de un módulo opcional.
+
 ---
 
 ## Stack técnico
@@ -246,40 +354,89 @@ discord_mode is False
 | Componente | Stack |
 |---|---|
 | Cliente (`rodolfo-amigo`) | Python + SpeechRecognition + Google STT + pystray + tkinter + PyInstaller |
-| Orquestador (`orchestrator.py`) | Python puro — sin dependencias externas; punto de extensión para Claude API |
-| Servidor (`rodolfo-bot`) | Python + discord.py + yt-dlp + edge-tts + spotipy + aiohttp + ngrok |
-| Motor local (`rodolfo-host`) | Python + pygame + nircmd + spotipy OAuth + edge-tts |
-| STT | Google STT (principal) — Whisper local (futuro fallback) |
-| Música | Spotify busca metadata → YouTube reproduce audio |
+| Wake word | openwakeword (ONNX) + sklearn LogisticRegression + `byarox_verifier.pkl` |
+| VAD | Silero VAD (ONNX, 16kHz, stateful) |
+| Audio ducking | pycaw (Windows Core Audio) → fade per-app; fallback nircmd |
+| Métricas | `VoiceMetrics` — latencias en ms (wakeword, ducking, stt, ttfa) |
+| Orquestador | `orchestrator.py` — Python puro, estado de sesión |
+| Servidor | Python + discord.py + yt-dlp + edge-tts + spotipy + aiohttp + ngrok |
+| Motor local | Python + pygame + nircmd + spotipy OAuth + edge-tts |
+| STT | Google STT (principal) — Whisper local (futuro) |
+| Música | Spotify metadata → YouTube audio |
 | Spotify personal | spotipy OAuth — playlists y álbumes del usuario |
-| Tokens | `tokens.json` — un token por usuario, Spotify tokens embebidos |
-| Extracción del exe | `%LOCALAPPDATA%\Rodo\` (estable entre actualizaciones, no `%TEMP%`) |
+| Tokens | `tokens.json` — un token por usuario, Spotify embebido |
+| Extracción exe | `%LOCALAPPDATA%\Rodo\` (estable entre updates) |
+
+---
+
+## Estado actual (v1.0.11)
+
+### ✅ Completado
+
+**Arquitectura base**
+- Orquestador central con estado de sesión y routing
+- Contexto Discord/local: pregunta una vez, recuerda por sesión
+- Reset de `discord_mode` al salir/entrar de canal
+
+**Nombre y activador**
+- Renombrado completo: Rodo → Byarox (exe, TTS, STT, shortcuts)
+- Activador: `ACTIVATOR_NAMES = ("byarox",)`
+- Correcciones STT: biarox/biharox/yarox/byaro → byarox
+
+**UX de voz**
+- "dime" al esperar comando (solo dijo "Byarox")
+- "lo tengo" al confirmar envío al bot
+- Cap de `energy_threshold` a 3500 (evita que música tape la voz)
+- "detente" reconocido como stop
+
+**Módulos de voz (implementados y testeados)**
+- `WakeWordEngine`: detector local siempre activo, dos modos (verifier pkl / fallback)
+- `train_byarox.py`: entrena el clasificador con edge-tts + openwakeword
+- `byarox_verifier.pkl`: entrenado (acc=100%, P(byarox|pos)=0.997)
+- `SileroVAD` + `SpeechSegmenter`: VAD local ONNX
+- `DuckingManager`: fade per-app con pycaw
+- `VoiceMetrics`: métricas de latencia
+- 18 tests (6+5+7) todos en verde
+
+**Integración en amigo.py**
+- `DuckingManager` reemplaza nircmd en `_mute_system`/`_unmute_system`
+- `_is_speaking` flag anti-feedback en `_speak_local_bg`
+- `WakeWordEngine` corre como hilo daemon (opcional, falla silenciosamente)
+
+**Spotify personal**
+- OAuth flow completo por voz
+- Búsqueda en biblioteca personal
+- Soporte multi-usuario
 
 ---
 
 ## Pendientes (en orden de prioridad)
 
-### Arquitectura
-- [x] Orquestador central (`orchestrator.py`) con estado de sesión y routing
-- [x] Lógica de contexto en `rodolfo-amigo`: preguntar una vez, recordar por sesión
-- [x] Reset de `discord_mode` al salir/entrar de canal de Discord
-- [ ] Fusión de `rodolfo-host` en `rodolfo-amigo` (un solo exe con todas las capacidades)
-- [ ] Integrar `orchestrator.decide()` con lógica LLM (Claude API) como reemplazo de reglas
-- [ ] Eliminar la duplicación de `command_parser.py` (un solo módulo compartido)
+### Próximo paso inmediato
+- [ ] **Compilar y publicar v1.0.11** (Byarox.exe — primer release con nuevo nombre + módulos de voz)
+  - `pyinstaller rodo.spec --noconfirm` → verificar que Byarox.exe carga `byarox_verifier.pkl` y pycaw
+  - Puede requerir ajuste de `rodo.spec` (hiddenimports de pycaw/comtypes son complejos)
+
+### Arquitectura de voz — siguiente evolución
+- [ ] **Loop full-duplex real**: reemplazar `recognizer.listen()` por VAD+WakeWordEngine como fuente primaria
+  - WakeWordEngine detecta "byarox" → VAD captura el segmento de comando → Google STT solo para el comando
+  - Elimina el gap de 0.2s de `adjust_for_ambient_noise` en cada iteración
+- [ ] **STT local** con Whisper (sin internet, más privado)
+  - Integrar `faster-whisper` o `whisper.cpp` como fallback de Google STT
+- [ ] **Usar `_ww_last_fire`** para correlación: si WakeWordEngine disparó hace <2s, reducir umbral de confianza del STT
+
+### Arquitectura general
+- [ ] Fusión de `rodolfo-host` en `rodolfo-amigo` (un solo exe)
+- [ ] Integrar `orchestrator.decide()` con LLM (Claude API) como reemplazo de reglas rígidas
+- [ ] Eliminar duplicación de `command_parser.py` (un solo módulo compartido)
 
 ### Spotify personal
-- [x] OAuth flow completo: vinculación por voz ("Rodo vincula mi Spotify")
-- [x] Búsqueda en biblioteca personal (playlists + álbumes guardados)
-- [x] Soporte multi-usuario: cada amigo vincula su propio Spotify
-- [ ] Cambio de dispositivo Spotify por voz ("Rodo cambia al celular")
-- [ ] Listar dispositivos de salida por voz ("Rodo qué dispositivos tengo")
+- [ ] Cambio de dispositivo Spotify por voz ("Byarox cambia al celular")
+- [ ] Listar dispositivos por voz ("Byarox qué dispositivos tengo")
 
 ### UX y voz
-- [x] Feedback por voz: "dime" al esperar comando, "lo tengo" al confirmar envío
-- [x] "detente" / "stock" / "para" reconocidos como stop
-- [x] Cap de energy_threshold (3500) para que música de fondo no tape la voz del usuario
 - [ ] Control de volumen de Windows por voz
-- [ ] Whisper local (STT sin internet)
+- [ ] Usar `VoiceMetrics.log_report()` al final de cada comando (telemetría de latencia)
 
 ### Música Discord
 - [ ] Ver cola en Discord
@@ -289,4 +446,4 @@ discord_mode is False
 - [ ] Auto-restart del bot si se cae
 - [ ] Hosting VPS 24/7
 - [ ] Panel web de administración
-- [ ] Certificado de código (para evitar aviso "desconocido" en Windows)
+- [ ] Certificado de código (evitar aviso "desconocido" en Windows)

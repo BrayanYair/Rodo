@@ -74,7 +74,7 @@ class VoiceAudioController:
     API_TOKEN             = os.getenv("API_TOKEN", "")
     WAKE_WORD_ENABLED     = os.getenv("WAKE_WORD_ENABLED", "true").lower() == "true"
     ACTIVATOR_REQUIRED    = os.getenv("ACTIVATOR_REQUIRED", "true").lower() == "true"
-    ACTIVATOR_NAMES       = ("rodo",)
+    ACTIVATOR_NAMES       = ("oye rodolfo", "rodolfo")
     # Dónde habla Rodolfo:
     #   "discord" → solo por el canal de voz (tú estás en el canal, no hay eco)  ✅ default
     #   "local"   → solo por tu PC (privado, amigos no oyen)
@@ -635,8 +635,8 @@ class VoiceAudioController:
         # ── Detección del activador "Rodolfo" (en cualquier parte) ────────
         # Google STT a veces antepone basura tipo "ahí está rodolfo..."
         # así que buscamos el activador en cualquier lugar del comando.
-        names_re = "|".join(self.ACTIVATOR_NAMES)
-        activator_re = re.compile(rf"\b(?:{names_re})\b[,\s]*")
+        names_re = "|".join(re.escape(name) for name in sorted(self.ACTIVATOR_NAMES, key=len, reverse=True))
+        activator_re = re.compile(rf"(?<!\w)(?:{names_re})(?!\w)[,\s]*")
         m = activator_re.search(cmd)
         has_activator = bool(m)
         if has_activator:
@@ -920,7 +920,7 @@ class VoiceAudioController:
             )
             # Filler/interjecciones que NO son títulos
             filler = {
-                "hola", "buenas", "alo", "oye", "hey", "rodo",
+                "hola", "buenas", "alo", "oye", "hey", "rodolfo",
                 "no", "si", "sí", "ya", "ah", "eh", "ok", "vale",
                 "bueno", "buena", "claro", "obvio", "tal", "y",
                 "que", "qué", "como", "cómo", "donde", "dónde",
@@ -953,13 +953,13 @@ class VoiceAudioController:
 
     def show_help(self):
         self.speak(
-            "Llámame Rodolfo antes de cualquier comando. "
-            "Para música: Rodolfo pon despacito, Rodolfo pásala, Rodolfo pausa, "
-            "Rodolfo sigue, Rodolfo qué está sonando, Rodolfo detén la música. "
-            "Para encolar: Rodolfo después pon X, Rodolfo limpia la cola. "
+            "Llámame con Oye Rodolfo antes de cualquier comando. "
+            "Para música: Oye Rodolfo pon despacito, Oye Rodolfo pásala, Oye Rodolfo pausa, "
+            "Oye Rodolfo sigue, Oye Rodolfo qué está sonando, Oye Rodolfo detén la música. "
+            "Para encolar: Oye Rodolfo después pon X, Oye Rodolfo limpia la cola. "
             "Funciona con YouTube y enlaces de Spotify. "
-            "Para volumen: Rodolfo sube el volumen, Rodolfo bájale, Rodolfo silencio. "
-            "Para cerrar: Rodolfo adiós.",
+            "Para volumen: Oye Rodolfo sube el volumen, Oye Rodolfo bájale, Oye Rodolfo silencio. "
+            "Para cerrar: Oye Rodolfo adiós.",
             can_interrupt=True,
         )
 
@@ -1187,7 +1187,7 @@ class VoiceAudioController:
                 # Sin el activador "Rodolfo" → ignoramos en silencio o usamos la memoria
                 if action == "ignored":
                     if time.time() - self.last_activator_time < self.ACTIVATOR_TIMEOUT:
-                        cmd_with_act = f"rodo {cmd}"
+                        cmd_with_act = f"oye rodolfo {cmd}"
                         print(f"  └─ [COMPLETADO CON MEMORIA] -> '{cmd_with_act}'")
                         parsed = self.parse_command(cmd_with_act)
                         action = parsed["action"]

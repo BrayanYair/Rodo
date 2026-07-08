@@ -49,8 +49,8 @@ def resolve_auth(auth_header: str) -> tuple[bool, str | None, str | None]:
 
 @web.middleware
 async def auth_middleware(request: web.Request, handler):
-    """Validate API tokens for all routes except /health."""
-    if request.path == "/health":
+    """Validate API tokens for all routes except /health and /dashboard."""
+    if request.path in ("/health", "/dashboard", "/dashboard/"):
         return await handler(request)
 
     auth = request.headers.get("Authorization", "")

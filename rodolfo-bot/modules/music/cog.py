@@ -252,7 +252,7 @@ class MusicCog(commands.Cog, name="Música"):
         if action == "play_music":
             query = parsed.get("query")
             if not query:
-                await _reply("¿Qué quieres que ponga? Intenta: *Rodolfo pon despacito*")
+                await _reply("¿Qué quieres que ponga? Intenta: *Oye Rodolfo, pon despacito*")
                 await player.say(R.error_no_query())
                 return
             try:
@@ -349,21 +349,21 @@ class MusicCog(commands.Cog, name="Música"):
 
         elif action == "help":
             help_text = (
-                "Para música di: Rodolfo pon y la canción. "
-                "También: Rodolfo siguiente, Rodolfo pausa, Rodolfo sigue, "
-                "Rodolfo limpia la cola, Rodolfo detén la música."
+                "Para música di: Oye Rodolfo, pon y la canción. "
+                "También: Oye Rodolfo siguiente, Oye Rodolfo pausa, Oye Rodolfo sigue, "
+                "Oye Rodolfo limpia la cola, Oye Rodolfo detén la música."
             )
             if message:
                 await message.reply(
                     "📖 **Comandos de música:**\n"
-                    "- `Rodolfo pon [canción o URL]`\n"
-                    "- `Rodolfo luego pon [canción]` / `encola [canción]`\n"
-                    "- `Rodolfo siguiente` / `skip`\n"
-                    "- `Rodolfo pausa` / `sigue`\n"
-                    "- `Rodolfo limpia la cola`\n"
-                    "- `Rodolfo detén la música` / `stop`\n"
-                    "- `Rodolfo sal del canal`\n"
-                    "- `Rodolfo qué está sonando`"
+                    "- `Oye Rodolfo pon [canción o URL]`\n"
+                    "- `Oye Rodolfo luego pon [canción]` / `encola [canción]`\n"
+                    "- `Oye Rodolfo siguiente` / `skip`\n"
+                    "- `Oye Rodolfo pausa` / `sigue`\n"
+                    "- `Oye Rodolfo limpia la cola`\n"
+                    "- `Oye Rodolfo detén la música` / `stop`\n"
+                    "- `Oye Rodolfo sal del canal`\n"
+                    "- `Oye Rodolfo qué está sonando`"
                 )
             await player.say(help_text)
 
@@ -388,31 +388,28 @@ class MusicCog(commands.Cog, name="Música"):
         if VOICE_MSG_ENABLED and message.content and not message.content.startswith("!"):
             text = message.content.strip()
             if text:
-                text_lower = text.lower()
-                has_act = any(n in text_lower for n in ("rodo", "rodolfo"))
-                if has_act:
-                    parsed = full_parse(text, require_activator=True)
-                    if parsed["action"] not in ("ignored", "unknown", "greet"):
-                        print(f"[COMPANION] {message.author.display_name}: '{text}' → {parsed['action']}")
-                        await message.add_reaction("🎵")
-                        # Buscar canal de voz del autor
-                        guild = message.guild
-                        if guild:
-                            player = get_player(guild.id)
-                            channel = None
-                            author_member = (
-                                find_member_by_name(guild, message.author.name)
-                                if message.webhook_id else message.author
-                            )
-                            if author_member:
-                                vs = guild._voice_states.get(author_member.id)
-                                if vs and vs.channel:
-                                    channel = vs.channel
-                            if not channel:
-                                channel = await find_voice_channel(guild)
-                            if channel:
-                                await player.connect(channel)
-                            await self._execute_action(parsed, message.author.display_name, message)
+                parsed = full_parse(text, require_activator=True)
+                if parsed["action"] not in ("ignored", "unknown", "greet"):
+                    print(f"[COMPANION] {message.author.display_name}: '{text}' → {parsed['action']}")
+                    await message.add_reaction("🎵")
+                    # Buscar canal de voz del autor
+                    guild = message.guild
+                    if guild:
+                        player = get_player(guild.id)
+                        channel = None
+                        author_member = (
+                            find_member_by_name(guild, message.author.name)
+                            if message.webhook_id else message.author
+                        )
+                        if author_member:
+                            vs = guild._voice_states.get(author_member.id)
+                            if vs and vs.channel:
+                                channel = vs.channel
+                        if not channel:
+                            channel = await find_voice_channel(guild)
+                        if channel:
+                            await player.connect(channel)
+                        await self._execute_action(parsed, message.author.display_name, message)
 
     # ── Manejo de notas de voz ─────────────────────────────────────────────────
 
@@ -439,7 +436,7 @@ class MusicCog(commands.Cog, name="Música"):
                 await message.add_reaction("🤔")
                 await message.reply(
                     "Escuché tu audio pero no detecté un comando. "
-                    "Empieza con **\"Rodolfo\"**, por ejemplo: *\"Rodolfo pon despacito\"*",
+                    "Empieza con **\"Oye Rodolfo\"**, por ejemplo: *\"Oye Rodolfo, pon despacito\"*",
                     delete_after=15,
                 )
                 return

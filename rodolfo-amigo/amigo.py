@@ -82,8 +82,11 @@ except Exception:
 from config_manager import config_exists, load_config, save_config
 from setup_gui      import run_setup, run_reconfigure
 
-# Activadores de voz — "byarox" es el activador principal
-ACTIVATOR_NAMES = ("byarox",)
+# Marca: Byarox. Nombre hablado del asistente: Rodolfo.
+PRIMARY_ACTIVATOR = "oye rodolfo"
+ACTIVATOR_NAMES = (PRIMARY_ACTIVATOR, "rodolfo")
+ENABLE_FULL_DUPLEX_WAKE = os.getenv("BYAROX_FULL_DUPLEX_WAKE", "false").lower() == "true"
+ENABLE_CHIME = os.getenv("BYAROX_CHIME", "false").lower() == "true"
 
 # Primera vez: setup visual automático (SIN overlay activo aún — evita conflicto tkinter)
 if not config_exists():
@@ -164,6 +167,16 @@ try:
 except Exception:
     pass
 
+# ─── Audio ducking (pycaw) — opcional, fallback a nircmd ─────────────────────
+# Reduce el volumen de Spotify/Chrome/etc. cuando Byarox escucha,
+# en lugar de silenciar todo el sistema con nircmd.
+_duck_mgr = None
+try:
+    from modules.ducking.ducking_manager import DuckingManager
+    _duck_mgr = DuckingManager(target_volume=0.15, fade_out_ms=120, fade_in_ms=300)
+except Exception:
+    pass  # sin pycaw → _mute_system usa nircmd como antes
+
 NOMBRE               = cfg.get("nombre",                "Amigo")
 BOT_API_URL          = cfg.get("api_url",               "").rstrip("/")
 BOT_API_TOKEN        = cfg.get("api_token",             "")
@@ -228,6 +241,8 @@ def _chime():
 
 def _chime_bg():
     """Fire-and-forget: chime en hilo daemon."""
+    if not ENABLE_CHIME:
+        return
     threading.Thread(target=_chime, daemon=True).start()
 
 
@@ -266,6 +281,8 @@ def get_nircmd_path() -> str:
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "nircmd.exe")
 
 _should_resume_spotify = False
+# Flag: True mientras _speak_local está reproduciendo (evita auto-activación)
+_is_speaking = threading.Event()
 
 def _spotify_pause():
     """Envía POST /api/spotify/pause al servidor en segundo plano"""
@@ -319,14 +336,24 @@ def _spotify_resume():
 
 
 def _mute_system():
-    """Silencia el volumen del sistema usando nircmd.exe y detiene Spotify Connect"""
+    """
+    Reduce el audio de fondo cuando Byarox escucha un comando.
+    Si pycaw está disponible: ducking suave a 15% (Spotify, Chrome, Firefox, Edge).
+    Fallback: mute completo del sistema via nircmd.exe.
+    También pausa Spotify Connect via API si estaba reproduciendo.
+    """
     global _should_resume_spotify
     _should_resume_spotify = False
-    
-    # Pausar Spotify en segundo plano
+
+    # Pausar Spotify remoto en segundo plano
     _spotify_pause()
-    
-    # Detener reproducción local
+
+    if _duck_mgr:
+        # Ducking per-app suave — más agradable que silenciar todo
+        _duck_mgr.duck()
+        return
+
+    # Fallback: nircmd muta el sistema completo
     _send_media_key(_VK_MEDIA_STOP)
 
     def _run():
@@ -345,13 +372,21 @@ def _mute_system():
 
 
 def _unmute_system():
-    """Restaura el volumen del sistema y reanuda Spotify Connect si corresponde"""
+    """
+    Restaura el audio de fondo después de procesar el comando.
+    Complemento de _mute_system — usa el mismo mecanismo (ducking o nircmd).
+    """
     global _should_resume_spotify
-    
+
     if _should_resume_spotify:
         _spotify_resume()
         _should_resume_spotify = False
 
+    if _duck_mgr:
+        _duck_mgr.restore()
+        return
+
+    # Fallback: restaurar via nircmd
     def _run():
         try:
             path = get_nircmd_path()
@@ -451,8 +486,32 @@ def _speak_local(text: str):
 
 
 def _speak_local_bg(text: str):
-    """Fire-and-forget: TTS en hilo daemon — no bloquea el loop de escucha."""
-    threading.Thread(target=_speak_local, args=(text,), daemon=True).start()
+    """
+    Fire-and-forget: TTS en hilo daemon — no bloquea el loop de escucha.
+    Activa _is_speaking mientras habla para que el WakeWordEngine no se
+    auto-active al escuchar la propia voz del asistente.
+    Muestra el estado "talking" en el overlay mientras habla y restaura
+    el estado previo al terminar (best-effort, falla en silencio).
+    """
+    def _run():
+        _is_speaking.set()
+        prev_state = None
+        if _overlay:
+            try: prev_state = _overlay.get_state()
+            except Exception: prev_state = None
+        _ov("talking")
+        try:
+            _speak_local(text)
+        finally:
+            _is_speaking.clear()
+            # Restaura el estado previo solo si el overlay sigue en "talking"
+            # (si el loop cambió de estado mientras hablaba, respetamos eso).
+            if _overlay:
+                try:
+                    if _overlay.get_state() == "talking":
+                        _ov(prev_state if prev_state else "idle")
+                except Exception: pass
+    threading.Thread(target=_run, daemon=True).start()
 
 
 # ─── Detección de comandos de música ─────────────────────────────────────────
@@ -467,19 +526,44 @@ _MUSIC_VERBS = {
 def _is_music_command(text: str) -> bool:
     """Detecta si el texto parece un comando de música (pon X, reproduce X, etc.)."""
     norm = normalize(text)
-    for name in ACTIVATOR_NAMES:
-        norm = re.sub(rf"\b{name}\b", "", norm).strip()
+    norm = _strip_activators(norm)
     words = set(norm.split())
     return bool(words & _MUSIC_VERBS)
 
 
 # ─── Contexto Discord ─────────────────────────────────────────────────────────
 
-def _check_context() -> dict:
+_CONTEXT_CACHE = {
+    "ts": 0.0,
+    "data": {"in_discord": False, "channel": None, "members": []},
+}
+_CONTEXT_CACHE_LOCK = threading.Lock()
+
+
+def _get_cached_context(max_age: float = 8.0) -> dict | None:
+    with _CONTEXT_CACHE_LOCK:
+        age = time.time() - float(_CONTEXT_CACHE.get("ts", 0.0))
+        if age <= max_age:
+            return dict(_CONTEXT_CACHE.get("data") or {})
+    return None
+
+
+def _set_cached_context(ctx: dict) -> None:
+    with _CONTEXT_CACHE_LOCK:
+        _CONTEXT_CACHE["ts"] = time.time()
+        _CONTEXT_CACHE["data"] = dict(ctx or {})
+
+
+def _check_context(use_cache: bool = False, max_age: float = 8.0) -> dict:
     """
     Pregunta al bot si hay humanos en canales de voz.
     Rápido: <50ms en red local, <300ms via ngrok.
     """
+    if use_cache:
+        cached = _get_cached_context(max_age=max_age)
+        if cached is not None:
+            return cached
+
     try:
         r = requests.get(
             f"{BOT_API_URL}/context",
@@ -488,10 +572,17 @@ def _check_context() -> dict:
             timeout=3,
         )
         if r.status_code == 200:
-            return r.json()
+            ctx = r.json()
+            _set_cached_context(ctx)
+            return ctx
     except Exception as e:
         vlog(f"[CONTEXT] Error: {e}")
-    return {"in_discord": False, "channel": None, "members": []}
+    fallback = {"in_discord": False, "channel": None, "members": []}
+    if use_cache:
+        cached = _get_cached_context(max_age=60.0)
+        if cached is not None:
+            return cached
+    return fallback
 
 
 def _listen_yesno(recognizer, mic, timeout: float = 8.0) -> bool | None:
@@ -767,7 +858,7 @@ def _spotify_oauth_flow() -> bool:
     if not _done.wait(timeout=120):
         server.server_close()
         vlog("[SPOTIFY_OAUTH] Timeout — el usuario no completó el flujo en 2 min")
-        _speak_local_bg("Se agotó el tiempo. Si querés vincular Spotify, decí 'Byarox vincula mi Spotify'.")
+        _speak_local_bg("Se agotó el tiempo. Si querés vincular Spotify, decí 'Oye Rodolfo, vincula mi Spotify'.")
         return False
 
     server.server_close()
@@ -1067,13 +1158,22 @@ def _open_local_playback(text: str, prefix: str = "Abriendo") -> bool:
 def normalize(text: str) -> str:
     text = unicodedata.normalize("NFD", text)
     text = "".join(c for c in text if unicodedata.category(c) != "Mn")
-    return text.lower().strip()
+    return re.sub(r"[^\w\s]", "", text.lower().strip())
+
+
+def _strip_activators(text: str) -> str:
+    cleaned = text
+    for name in sorted(ACTIVATOR_NAMES, key=len, reverse=True):
+        cleaned = re.sub(rf"(?<!\w){re.escape(name)}(?!\w)", "", cleaned)
+    return re.sub(r"\s+", " ", cleaned).strip()
 
 
 def has_activator(text: str) -> bool:
     norm = normalize(text)
-    # Usar word boundary para no detectar el activador dentro de otra palabra
-    return any(re.search(rf"\b{name}\b", norm) for name in ACTIVATOR_NAMES)
+    return any(
+        re.search(rf"(?<!\w){re.escape(name)}(?!\w)", norm)
+        for name in ACTIVATOR_NAMES
+    )
 
 
 # ─── Principal ────────────────────────────────────────────────────────────────
@@ -1143,10 +1243,10 @@ def _start_voice_monitor(orch, poll_interval: float = 5.0):
         while True:
             time.sleep(poll_interval)
             try:
+                ctx = _check_context(use_cache=False)
                 mode = orch.state.discord_mode
                 if mode is None:
                     continue  # Aún sin decidir — nada que monitorear
-                ctx = _check_context()
                 if ctx.get("in_discord"):
                     _on_enter(ctx.get("channel"))
                 else:
@@ -1171,12 +1271,15 @@ def main():
     print("║         🎤  Byarox  — Companion            ║")
     print("╠════════════════════════════════════════════╣")
     print(f"║  Hola, {NOMBRE:<35s} ║")
-    print("║  Di 'Byarox pon [cancion]' para empezar    ║")
+    print("║  Di 'Oye Rodolfo, pon [cancion]'           ║")
     print("║  Ctrl+C para salir                         ║")
     print("╚════════════════════════════════════════════╝")
     print()
 
     recognizer = sr.Recognizer()
+    recognizer.pause_threshold = 0.5
+    recognizer.non_speaking_duration = 0.3
+    recognizer.phrase_threshold = 0.15
 
     print("[INIT] Dispositivos de grabación detectados:")
     try:
@@ -1222,14 +1325,16 @@ def main():
     print("[INIT] Calibrando micrófono...")
     with mic as source:
         recognizer.adjust_for_ambient_noise(source, duration=1.5)
+    if recognizer.energy_threshold > 3500:
+        recognizer.energy_threshold = 3500
     print("[INIT] ¡Listo! Empieza a hablar.\n")
 
     print("Ejemplos de comandos:")
-    print("  Byarox pon despacito")
-    print("  Byarox siguiente")
-    print("  Byarox pausa / sigue")
-    print("  Byarox que esta sonando")
-    print("  Byarox para la musica")
+    print("  Oye Rodolfo pon despacito")
+    print("  Oye Rodolfo siguiente")
+    print("  Oye Rodolfo pausa / sigue")
+    print("  Oye Rodolfo que esta sonando")
+    print("  Oye Rodolfo para la musica")
     print()
 
     # ── Bienvenida para usuarios nuevos (flujo secuencial, paso a paso) ─────────
@@ -1258,7 +1363,7 @@ def main():
             save_config(cfg)
 
             vlog("[ONBOARDING] Detectando si Discord está abierto...")
-            _speak_local(f"Hola {NOMBRE}! Soy Byarox. Hacemos una configuración rápida.")
+            _speak_local(f"Hola {NOMBRE}! Soy Rodolfo, el asistente de Byarox. Hacemos una configuración rápida.")
 
             if _is_discord_running():
                 vlog("[ONBOARDING] Discord detectado — vinculando...")
@@ -1277,11 +1382,11 @@ def main():
                     _speak_local(f"Listo, te reconocí como {_identity.get('display_name', NOMBRE)}.")
                     vlog(f"[ONBOARDING] Discord vinculado: {_identity.get('display_name')} ({DISCORD_ID})")
                 else:
-                    _speak_local("No pude conectarme. Decí Byarox vincula mi Discord cuando quieras.")
+                    _speak_local("No pude conectarme. Decí Oye Rodolfo, vincula mi Discord cuando quieras.")
                     vlog("[ONBOARDING] Discord abierto pero falló el vínculo")
             else:
                 vlog("[ONBOARDING] Discord no detectado — saltando")
-                _speak_local("No detecté Discord abierto. Si lo usás, abrilo y decí Byarox vincula mi Discord.")
+                _speak_local("No detecté Discord abierto. Si lo usás, abrilo y decí Oye Rodolfo, vincula mi Discord.")
 
         # ── PASO 2: Spotify (detectar instalación, preguntar Premium) ────────
         if not cfg.get("spotify_offered", False):
@@ -1314,13 +1419,49 @@ def main():
 
         # ── FIN del onboarding ───────────────────────────────────────────────
         _speak_local(
-            "¡Todo listo! Ya podés usarme. Decí Byarox, pon una canción para empezar."
+            "¡Todo listo! Ya podés usarme. Decí Oye Rodolfo, pon una canción para empezar."
         )
         vlog("[ONBOARDING] Configuración inicial completada")
 
     last_activator_time = 0.0
     _is_muted           = False
-    ACTIVATOR_TIMEOUT   = 6.0   # segundos de ventana tras decir solo "Rodo"
+    ACTIVATOR_TIMEOUT   = 6.0   # segundos de ventana tras decir solo "Oye Rodolfo"
+
+    # ── STTEngine (Google + Whisper local como fallback) ────────────────────────
+    import queue as _queue
+    from modules.stt.stt_engine import STTEngine
+    _stt = STTEngine(language="es-ES", whisper_model="base", prefer_local=False)
+    vlog("[STT] Motor STTEngine listo (Google primario, Whisper fallback)")
+
+    # ── AudioLoop: full-duplex (WakeWord + VAD en un único stream PyAudio) ─────
+    # El modelo actual fue entrenado para Byarox. Hasta entrenar uno para
+    # "Oye Rodolfo", queda desactivado por defecto y se usa STT clásico.
+    _audio_loop  = None
+    _audio_queue = _queue.Queue()
+
+    if not ENABLE_FULL_DUPLEX_WAKE:
+        vlog("[AUDIO] Wakeword offline Byarox desactivado; usando STT clásico para 'Oye Rodolfo'")
+
+    try:
+        if not ENABLE_FULL_DUPLEX_WAKE:
+            raise RuntimeError("wakeword offline desactivado hasta entrenar 'Oye Rodolfo'")
+        from modules.audio.audio_loop import AudioLoop
+        _audio_loop = AudioLoop(
+            wakeword_threshold = 0.5,
+            vad_threshold      = 0.5,
+            silence_ms         = 800,
+            max_command_ms     = 7_000,
+        )
+        # Callback de nivel de audio → overlay reacciona al volumen real (best-effort)
+        def _feed_audio_level(level):
+            if _overlay:
+                try: _overlay.set_audio_level(level)
+                except Exception: pass
+        _audio_loop.start(is_speaking_event=_is_speaking, level_callback=_feed_audio_level)
+        _audio_queue = _audio_loop.audio_queue
+        vlog("[AUDIO] AudioLoop activo — modo full-duplex habilitado")
+    except Exception as _al_err:
+        vlog(f"[AUDIO] AudioLoop no disponible ({type(_al_err).__name__}) — modo STT clásico")
 
     # Estado centralizado en el orquestador
     # discord_mode: None = sin decidir, True = Discord, False = local
@@ -1341,53 +1482,90 @@ def main():
                     _unmute_system()
                     _is_muted = False
 
-            with mic as source:
-                recognizer.adjust_for_ambient_noise(source, duration=0.2)
-                # Si hay ruido de fondo (música de Discord, TV, etc.) el umbral sube
-                # tanto que Rodo deja de detectar la voz del usuario.
-                # Lo capeamos en 3 500 — suficiente para ignorar silencio de fondo,
-                # sin que una canción en los parlantes apague el micrófono.
-                if recognizer.energy_threshold > 3500:
-                    recognizer.energy_threshold = 3500
-                _ov("listening")
-                print("[ESCUCHO] ", end="", flush=True)
-                audio = recognizer.listen(source, timeout=10, phrase_time_limit=7)
+            _ov("listening")
+            print("[ESCUCHO] ", end="", flush=True)
 
-            # Restaurar volumen tan pronto como el usuario termina de hablar
-            if _is_muted:
-                _unmute_system()
-                _is_muted = False
+            # ── Seleccionar fuente de audio ────────────────────────────────────
+            # Modo full-duplex: AudioLoop espera wake word offline → entrega np.ndarray.
+            # Condición: AudioLoop corriendo Y no estamos en ventana de activador
+            # (en ventana usamos STT clásico para capturar el comando sin "Oye Rodolfo").
+            _full_duplex = (
+                _audio_loop is not None
+                and _audio_loop.is_running
+                and time.time() - last_activator_time >= ACTIVATOR_TIMEOUT
+            )
 
-            # Transcribir con Google STT
-            _ov("processing")
-            try:
-                old_timeout = socket.getdefaulttimeout()
-                socket.setdefaulttimeout(7.0)
+            if _full_duplex:
+                # ── FULL-DUPLEX: AudioLoop captura wake word + comando ─────────
                 try:
-                    text = recognizer.recognize_google(audio, language="es-ES").strip()
-                finally:
-                    socket.setdefaulttimeout(old_timeout)
-            except sr.UnknownValueError:
-                vlog("(nada — STT no entendió)")
-                _ov("idle")
-                continue
-            except (socket.timeout, TimeoutError) as e:
-                vlog("(timeout STT: la red tardó más de 7 segundos en responder)")
-                _ov("error")
-                time.sleep(1)
-                continue
-            except sr.RequestError as e:
-                vlog(f"(error STT: {e})")
-                _ov("error")
-                time.sleep(1)
-                continue
+                    audio_np = _audio_queue.get(timeout=15)
+                except _queue.Empty:
+                    _ov("idle")
+                    continue
 
+                # Wake word detectado — duck inmediato
+                if not _is_muted:
+                    _mute_system()
+                    _is_muted = True
 
-            # Corregir variantes de "Byarox" que Google STT puede generar
-            text = re.sub(r"\bBiarox\b",  "Byarox", text, flags=re.IGNORECASE)
-            text = re.sub(r"\bBiharox\b", "Byarox", text, flags=re.IGNORECASE)
-            text = re.sub(r"\bYarox\b",   "Byarox", text, flags=re.IGNORECASE)
-            text = re.sub(r"\bByaro\b",   "Byarox", text, flags=re.IGNORECASE)
+                _ov("processing")
+                text = _stt.transcribe(audio_np)   # Google → fallback Whisper
+
+                if _is_muted:
+                    _unmute_system()
+                    _is_muted = False
+
+                if not text:
+                    vlog("(nada — STT no entendió)")
+                    _ov("idle")
+                    continue
+
+                # AudioLoop garantiza que hubo wake word aunque no aparezca en el texto
+                if not has_activator(text):
+                    text = f"{PRIMARY_ACTIVATOR} {text}"
+
+            else:
+                # ── STT CLÁSICO: recognizer.listen() ─────────────────────────
+                # Fallback si AudioLoop no disponible, o si estamos en ventana de
+                # activador (el usuario ya dijo "Oye Rodolfo" y espera seguir hablando).
+                with mic as source:
+                    if recognizer.energy_threshold > 3500:
+                        recognizer.energy_threshold = 3500
+                    audio_sr = recognizer.listen(source, timeout=10, phrase_time_limit=7)
+
+                if _is_muted:
+                    _unmute_system()
+                    _is_muted = False
+
+                _ov("processing")
+                try:
+                    old_timeout = socket.getdefaulttimeout()
+                    socket.setdefaulttimeout(7.0)
+                    try:
+                        text = recognizer.recognize_google(audio_sr, language="es-ES").strip()
+                    finally:
+                        socket.setdefaulttimeout(old_timeout)
+                except sr.UnknownValueError:
+                    vlog("(nada — STT no entendió)")
+                    _ov("idle")
+                    continue
+                except (socket.timeout, TimeoutError, sr.RequestError) as _stt_err:
+                    vlog(f"(Google STT falló: {_stt_err}) — intentando Whisper local...")
+                    try:
+                        _raw  = audio_sr.get_raw_data(convert_rate=16_000, convert_width=2)
+                        _np16 = np.frombuffer(_raw, dtype=np.int16)
+                        text  = _stt._transcribe_whisper(_np16, 16_000)
+                    except Exception:
+                        text = ""
+                    if not text:
+                        _ov("error")
+                        time.sleep(1)
+                        continue
+
+            # Corregir variantes de "Rodolfo" que Google STT puede generar.
+            text = re.sub(r"\bRedolfo\b", "Rodolfo", text, flags=re.IGNORECASE)
+            text = re.sub(r"\bRolfo\b", "Rodolfo", text, flags=re.IGNORECASE)
+            text = re.sub(r"\bOie\s+Rodolfo\b", "Oye Rodolfo", text, flags=re.IGNORECASE)
 
             vlog(f"[ESCUCHÉ] '{text}'")
 
@@ -1398,13 +1576,12 @@ def main():
                 # Quitar el activador para ver qué queda
                 norm_text  = normalize(text)
                 clean_norm = norm_text
-                for name in ACTIVATOR_NAMES:
-                    clean_norm = re.sub(rf"\b{name}\b", "", clean_norm)
-                clean_norm = clean_norm.strip()
+                clean_norm = _strip_activators(clean_norm)
 
                 if not clean_norm:
-                    # Solo dijo "Rodo" — abrir ventana de 6s para el siguiente comando
-                    # "dime" le indica al usuario que Rodo está esperando el comando
+                    # Solo dijo el activador: abrir ventana de 6s para el siguiente comando.
+                    # "dime" le indica al usuario que Rodolfo está esperando.
+                    _chime_bg()
                     _speak_local_bg("dime")
                     last_activator_time = time.time()
                     _mute_system()
@@ -1412,23 +1589,24 @@ def main():
                     vlog(f"  -> [ACTIVADOR] Escuchando comando ({ACTIVATOR_TIMEOUT:.0f}s)...")
                     continue
                 else:
+                    _chime_bg()
                     last_activator_time = 0.0
             else:
                 # Sin activador — ¿hay ventana activa?
                 if time.time() - last_activator_time < ACTIVATOR_TIMEOUT:
-                    text = f"Byarox {text}"
+                    text = f"Oye Rodolfo {text}"
+                    _chime_bg()
                     vlog(f"  -> [VENTANA] completado → '{text}'")
                     last_activator_time = 0.0
                 else:
-                    vlog(f"  -> [IGNORADO] sin activador (STT escuchó pero no dijo 'byarox')")
+                    vlog("  -> [IGNORADO] sin activador (STT escuchó pero no dijo 'oye rodolfo')")
                     last_activator_time = 0.0
                     continue
 
             # ── Comandos locales (no van al servidor) ────────────────────────
             norm_cmd = normalize(text)
             # Quitar activador para revisar el comando limpio
-            for name in ACTIVATOR_NAMES:
-                norm_cmd = re.sub(rf"\b{name}\b", "", norm_cmd).strip()
+            norm_cmd = _strip_activators(norm_cmd)
 
             if any(w in norm_cmd for w in [
                 "ocultate", "oculta", "escondete", "esconde",
@@ -1476,8 +1654,18 @@ def main():
             if _is_discord_ref and \
                (_norm_words & _discord_enter):
                 _session["discord_mode"] = True
-                vlog("  -> [MODO] Discord activado explícitamente\n")
-                _speak_local_bg("Modo Discord activado.")
+                ctx = _check_context()
+                if ctx.get("in_discord") and ctx.get("channel"):
+                    res = _move_discord("bot", ctx["channel"])
+                    if res.get("ok"):
+                        vlog(f"  -> [MODO] Discord activado, bot unido a '{ctx['channel']}'\n")
+                        _speak_local_bg(f"Modo Discord activado. Me uní a {ctx['channel']}.")
+                    else:
+                        vlog(f"  -> [MODO] Discord activado, pero no pude unirme: {res.get('errors')}\n")
+                        _speak_local_bg("Modo Discord activado, pero no pude unirme al canal.")
+                else:
+                    vlog("  -> [MODO] Discord activado explícitamente (usuario no está en un canal de voz)\n")
+                    _speak_local_bg("Modo Discord activado. Avísame cuando estés en un canal de voz.")
                 _ov("ok")
                 continue
 
@@ -1611,7 +1799,7 @@ def main():
             if _route.handler == "ask" and not _session["asking"]:
                 _session["asking"] = True
                 try:
-                    ctx = _check_context()
+                    ctx = _check_context(use_cache=True, max_age=8.0)
                     if ctx.get("in_discord"):
                         channel_name = ctx.get("channel", "el canal")
                         guild_name = ctx.get("guild", "")
@@ -1660,10 +1848,15 @@ def main():
                 if result.get("ok"):
                     vlog("  -> [OK] comando enviado\n")
                     _ov("ok")
-                    _speak_local_bg("lo tengo")   # confirmación de envío al bot
                     if _is_music_command(text):
                         global _should_resume_spotify
                         _should_resume_spotify = False
+                    # Si es un comando de música y estás en el canal de voz, el
+                    # bot te confirma hablando ahí mismo (player.say en el server).
+                    # Si no, o si no es de música, confirmamos por acá.
+                    _ctx = _check_context(use_cache=True, max_age=8.0)
+                    if not (_is_music_command(text) and _ctx.get("in_discord")):
+                        _speak_local_bg("lo tengo")
                     if result.get("need_spotify_auth"):
                         vlog("  -> [SPOTIFY_OAUTH] Servidor indica que falta Spotify - iniciando flujo\n")
                         threading.Thread(target=_spotify_oauth_flow, daemon=True).start()
@@ -1675,6 +1868,11 @@ def main():
                         vlog("  -> [FALLBACK LOCAL] Sin canal de voz - reproduciendo local\n")
                         _session["discord_mode"] = False
                         _open_local_playback(text, prefix="No hay nadie en Discord, abriendo")
+                    elif err_code == 400 and "sin query" in err_msg:
+                        _speak_local_bg("Qué pongo")
+                        last_activator_time = time.time()
+                        _ov("listening")
+                        vlog(f"  -> [QUERY VACIA] Esperando cancion ({ACTIVATOR_TIMEOUT:.0f}s)...")
                     elif result.get("action") in ("unknown", "ignored"):
                         vlog("  -> [IGNORADO] Comando no reconocido por el servidor\n")
                         _ov("idle")

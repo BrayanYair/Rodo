@@ -34,3 +34,4 @@ python-dotenv
 requests
 fuzzywuzzy
 python-Levenshtein
+rapidfuzz

@@ -2,7 +2,10 @@ import re
 import unicodedata
 import functools
 
-ACTIVATOR_NAMES = ("byarox",)
+BRAND_NAME = "Byarox"
+ASSISTANT_NAME = "Rodolfo"
+PRIMARY_ACTIVATOR = "oye rodolfo"
+ACTIVATOR_NAMES = (PRIMARY_ACTIVATOR, "rodolfo")
 
 @functools.lru_cache(maxsize=1024)
 def normalize(cmd: str) -> str:
