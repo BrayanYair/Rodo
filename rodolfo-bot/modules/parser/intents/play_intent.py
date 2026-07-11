@@ -20,6 +20,12 @@ class PlayIntent(BaseIntent):
         ):
             return IntentResult(action=self.name, confidence=1.0, query="", spotify_type="saved_tracks")
 
+        # "dime de Arcangel" suele ser STT de un titulo pedido tras el wakeword.
+        # Lo tratamos como musica solo con el patron "dime de X" para no capturar
+        # futuros comandos conversacionales tipo "dime que hora es".
+        if re.match(r"\bdime\s+de\s+[\w\s]{2,}$", cmd):
+            return IntentResult(action=self.name, confidence=0.75, query=cmd)
+
         play_verbs = [
             "ponme", "pon", "pone", "poner", "ponle", "ponele",
             "reproduce", "reproduceme", "reproducir", "play",

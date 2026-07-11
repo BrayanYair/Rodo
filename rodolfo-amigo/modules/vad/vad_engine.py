@@ -57,12 +57,21 @@ class SileroVAD:
         sample_rate:  Frecuencia de muestreo esperada (16000 Hz).
     """
 
+    # Muestras de "contexto" (cola del chunk anterior) que el modelo v5
+    # necesita pegadas antes de cada chunk nuevo. Sin esto el modelo
+    # devuelve ~0 siempre, tenga voz real o no (no tira error, da resultados
+    # silenciosamente incorrectos).
+    _CONTEXT_SAMPLES = 64
+
     def __init__(self, threshold: float = 0.5, sample_rate: int = 16000):
         self.threshold = threshold
         self.sample_rate = sample_rate
         self._session = None
+        self._legacy_io = False  # True = firma vieja (h/c separados), False = 'state' combinado
         self._h = None
         self._c = None
+        self._state = None
+        self._context = None
         self._load_model()
 
     def _load_model(self):
@@ -75,16 +84,26 @@ class SileroVAD:
             opts.intra_op_num_threads = 1
             opts.log_severity_level = 3  # suprimir warnings de ONNX
             self._session = ort.InferenceSession(_MODEL_PATH, sess_options=opts)
-            logger.info("SileroVAD: modelo cargado.")
+            # Silero VAD cambió su firma ONNX entre versiones: v4 usa "h"/"c"
+            # separados (64 unidades), v5+ usa un único "state" (128 unidades).
+            # Detectamos cuál tiene el modelo descargado para no romper con
+            # actualizaciones futuras del archivo (se baja de "master").
+            input_names = {i.name for i in self._session.get_inputs()}
+            self._legacy_io = "h" in input_names and "c" in input_names
+            logger.info(
+                f"SileroVAD: modelo cargado (firma {'legacy h/c' if self._legacy_io else 'state'})."
+            )
         except Exception as e:
             logger.error(f"SileroVAD: no se pudo cargar el modelo: {e}")
             self._session = None
         self.reset()
 
     def reset(self):
-        """Resetea el estado interno (h, c) del modelo recurrente."""
+        """Resetea el estado interno del modelo recurrente."""
         self._h = np.zeros((2, 1, 64), dtype=np.float32)
         self._c = np.zeros((2, 1, 64), dtype=np.float32)
+        self._state = np.zeros((2, 1, 128), dtype=np.float32)
+        self._context = np.zeros(self._CONTEXT_SAMPLES, dtype=np.float32)
 
     def predict(self, chunk: np.ndarray) -> float:
         """
@@ -115,22 +134,35 @@ class SileroVAD:
             elif len(audio_f32) > _VAD_CHUNK_SAMPLES:
                 audio_f32 = audio_f32[:_VAD_CHUNK_SAMPLES]
 
-            # Shape: [1, 512]
-            audio_input = audio_f32.reshape(1, _VAD_CHUNK_SAMPLES)
-
             sr_input = np.array(self.sample_rate, dtype=np.int64)
 
-            feeds = {
-                "input": audio_input,
-                "sr": sr_input,
-                "h": self._h,
-                "c": self._c,
-            }
-
-            outputs = self._session.run(["output", "hn", "cn"], feeds)
-            speech_prob = float(outputs[0].squeeze())
-            self._h = outputs[1]
-            self._c = outputs[2]
+            if self._legacy_io:
+                # Shape: [1, 512]
+                audio_input = audio_f32.reshape(1, _VAD_CHUNK_SAMPLES)
+                feeds = {
+                    "input": audio_input,
+                    "sr": sr_input,
+                    "h": self._h,
+                    "c": self._c,
+                }
+                outputs = self._session.run(["output", "hn", "cn"], feeds)
+                speech_prob = float(outputs[0].squeeze())
+                self._h = outputs[1]
+                self._c = outputs[2]
+            else:
+                # v5 espera el contexto (cola del chunk anterior) pegado
+                # antes del chunk nuevo → shape [1, 64+512].
+                windowed = np.concatenate([self._context, audio_f32])
+                audio_input = windowed.reshape(1, -1)
+                feeds = {
+                    "input": audio_input,
+                    "sr": sr_input,
+                    "state": self._state,
+                }
+                outputs = self._session.run(["output", "stateN"], feeds)
+                speech_prob = float(outputs[0].squeeze())
+                self._state = outputs[1]
+                self._context = audio_f32[-self._CONTEXT_SAMPLES:]
 
             return speech_prob
 

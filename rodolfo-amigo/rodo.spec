@@ -23,8 +23,8 @@ a = Analysis(
     datas=sr_datas + [
         ("rodo_logo.ico", "."),
         ("nircmd.exe", "."),
-        # Clasificador de wake word "byarox"
-        ("modules/wakeword/byarox_verifier.pkl", "modules/wakeword"),
+        # Clasificador de wake word "oye rodo"
+        ("modules/wakeword/rodo_verifier.pkl", "modules/wakeword"),
         # Modelo VAD de Silero (ONNX)
         ("modules/vad/silero_vad.onnx", "modules/vad"),
         # __init__.py de paquetes (necesario para imports en modo frozen)

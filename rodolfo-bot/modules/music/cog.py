@@ -252,7 +252,7 @@ class MusicCog(commands.Cog, name="Música"):
         if action == "play_music":
             query = parsed.get("query")
             if not query:
-                await _reply("¿Qué quieres que ponga? Intenta: *Oye Rodolfo, pon despacito*")
+                await _reply("¿Qué quieres que ponga? Intenta: *Oye Rodo, pon despacito*")
                 await player.say(R.error_no_query())
                 return
             try:
@@ -349,21 +349,21 @@ class MusicCog(commands.Cog, name="Música"):
 
         elif action == "help":
             help_text = (
-                "Para música di: Oye Rodolfo, pon y la canción. "
-                "También: Oye Rodolfo siguiente, Oye Rodolfo pausa, Oye Rodolfo sigue, "
-                "Oye Rodolfo limpia la cola, Oye Rodolfo detén la música."
+                "Para música di: Oye Rodo, pon y la canción. "
+                "También: Oye Rodo siguiente, Oye Rodo pausa, Oye Rodo sigue, "
+                "Oye Rodo limpia la cola, Oye Rodo detén la música."
             )
             if message:
                 await message.reply(
                     "📖 **Comandos de música:**\n"
-                    "- `Oye Rodolfo pon [canción o URL]`\n"
-                    "- `Oye Rodolfo luego pon [canción]` / `encola [canción]`\n"
-                    "- `Oye Rodolfo siguiente` / `skip`\n"
-                    "- `Oye Rodolfo pausa` / `sigue`\n"
-                    "- `Oye Rodolfo limpia la cola`\n"
-                    "- `Oye Rodolfo detén la música` / `stop`\n"
-                    "- `Oye Rodolfo sal del canal`\n"
-                    "- `Oye Rodolfo qué está sonando`"
+                    "- `Oye Rodo pon [canción o URL]`\n"
+                    "- `Oye Rodo luego pon [canción]` / `encola [canción]`\n"
+                    "- `Oye Rodo siguiente` / `skip`\n"
+                    "- `Oye Rodo pausa` / `sigue`\n"
+                    "- `Oye Rodo limpia la cola`\n"
+                    "- `Oye Rodo detén la música` / `stop`\n"
+                    "- `Oye Rodo sal del canal`\n"
+                    "- `Oye Rodo qué está sonando`"
                 )
             await player.say(help_text)
 
@@ -436,7 +436,7 @@ class MusicCog(commands.Cog, name="Música"):
                 await message.add_reaction("🤔")
                 await message.reply(
                     "Escuché tu audio pero no detecté un comando. "
-                    "Empieza con **\"Oye Rodolfo\"**, por ejemplo: *\"Oye Rodolfo, pon despacito\"*",
+                    "Empieza con **\"Oye Rodo\"**, por ejemplo: *\"Oye Rodo, pon despacito\"*",
                     delete_after=15,
                 )
                 return

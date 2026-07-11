@@ -1,4 +1,4 @@
-BYAROX - Asistente de musica por voz
+﻿BYAROX - Asistente de musica por voz
 ====================================
 
 Que es
@@ -7,7 +7,7 @@ Byarox controla musica con tu voz. Al asistente le hablas como Rodolfo.
 
 Frase principal:
 
-  "Oye Rodolfo, pon despacito"
+  "Oye Rodo, pon despacito"
 
 Primeros pasos
 --------------
@@ -18,23 +18,23 @@ Primeros pasos
 
 Comandos utiles
 ---------------
-  "Oye Rodolfo, pon [cancion o artista]"
-  "Oye Rodolfo, siguiente"
-  "Oye Rodolfo, pausa"
-  "Oye Rodolfo, sigue"
-  "Oye Rodolfo, para la musica"
-  "Oye Rodolfo, que esta sonando"
-  "Oye Rodolfo, vincula mi Spotify"
+  "Oye Rodo, pon [cancion o artista]"
+  "Oye Rodo, siguiente"
+  "Oye Rodo, pausa"
+  "Oye Rodo, sigue"
+  "Oye Rodo, para la musica"
+  "Oye Rodo, que esta sonando"
+  "Oye Rodo, vincula mi Spotify"
 
 Tip
 ---
-Puedes decir solo "Oye Rodolfo" y esperar. Cuando responda "dime",
+Puedes decir solo "Oye Rodo" y esperar. Cuando responda "dime",
 di el comando sin repetir el nombre durante los siguientes segundos.
 
 Problemas comunes
 -----------------
 "No me entiende"
-  - Habla mas claro y di "Oye Rodolfo" al principio.
+  - Habla mas claro y di "Oye Rodo" al principio.
   - Reduce el ruido de fondo.
 
 "No reproduce nada"

@@ -6,7 +6,7 @@
 #   3. Sube el Byarox.exe nuevo a GitHub Releases
 #   4. Haz git push → los usuarios lo reciben automáticamente al abrir Rodo
 
-VERSION = "1.0.12"
+VERSION = "1.0.13"
 
 # URL del archivo que tiene la versión más reciente (GitHub raw — siempre actualizado)
 UPDATE_CHECK_URL = (

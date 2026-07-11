@@ -310,7 +310,7 @@ def test_ww_score_fallback_no_verifier():
         loop = AudioLoop()
         mock_oww = _make_mock_oww(score=0.75)
 
-        chunk = np.zeros(512, dtype=np.int16)
+        chunk = (np.sin(np.linspace(0, 8 * np.pi, 512)) * 1200).astype(np.int16)
         score = loop._ww_score(chunk, mock_oww, verifier=None)
 
         assert isinstance(score, float), f"score debe ser float, got {type(score)}"
@@ -334,7 +334,7 @@ def test_ww_score_with_verifier():
         mock_verifier.classes_ = [0, 1]
         mock_verifier.predict_proba.return_value = np.array([[0.2, 0.8]])
 
-        chunk = np.zeros(512, dtype=np.int16)
+        chunk = (np.sin(np.linspace(0, 8 * np.pi, 512)) * 1200).astype(np.int16)
         score = loop._ww_score(chunk, mock_oww, verifier=mock_verifier)
 
         assert isinstance(score, float), f"score debe ser float, got {type(score)}"

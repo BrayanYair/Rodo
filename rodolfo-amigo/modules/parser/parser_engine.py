@@ -35,8 +35,8 @@ _SHUFFLE_RE = re.compile(
     r"\b(en\s+modo\s+)?(random|aleatorio|aleatoria|mezcla|mezclar|shuffle|al\s+azar)\b"
 )
 
-_ALIAS_ONLY_ACTIVATOR_RE = re.compile(r"(?<!\w)rodolfo(?!\w)")
-_PRIMARY_ACTIVATOR_RE = re.compile(r"(?<!\w)oye\s+rodolfo(?!\w)")
+_ALIAS_ONLY_ACTIVATOR_RE = re.compile(r"(?<!\w)(?:rodo|rodolfo)(?!\w)")
+_PRIMARY_ACTIVATOR_RE = re.compile(r"(?<!\w)oye\s+rodo(?!\w)")
 _FALLBACK_MUSIC_HINTS = {
     "pon", "ponme", "pone", "poneme", "coloca", "colocame", "reproduce",
     "play", "escucha", "escuchemos", "encola", "agrega", "agregame",

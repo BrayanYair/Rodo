@@ -10,6 +10,7 @@ Si pycaw no está disponible, opera en modo silencioso (sin crash).
 
 import time
 import threading
+import queue
 import logging
 from typing import Dict, List, Optional, Tuple
 
@@ -72,6 +73,19 @@ class DuckingManager:
         self._AudioUtilities, self._IAudioEndpointVolume, self._ISimpleAudioVolume, self._CLSCTX_ALL = _try_import_pycaw()
         self._pycaw_available = self._AudioUtilities is not None
 
+        # Todo el trabajo de COM (pycaw/comtypes) corre en UN único hilo
+        # daemon persistente. Antes cada duck()/restore() lanzaba su propio
+        # hilo suelto — con el wake word local disparando seguido, esos
+        # hilos se solapaban y terminaban tocando los mismos objetos COM
+        # desde threads distintos ("COM method call without VTable"),
+        # corrompiendo memoria y crasheando el proceso entero (segfault).
+        # Serializar todo en un solo hilo elimina esa condición de carrera.
+        self._op_queue: "queue.Queue[str]" = queue.Queue()
+        self._worker = threading.Thread(
+            target=self._worker_loop, daemon=True, name="DuckingWorker"
+        )
+        self._worker.start()
+
     @property
     def is_ducked(self) -> bool:
         """True si el ducking está activo actualmente."""
@@ -80,28 +94,36 @@ class DuckingManager:
     def duck(self):
         """
         Reduce el volumen de aplicaciones multimedia.
-        Operación no bloqueante: el fade ocurre en un hilo separado.
+        Operación no bloqueante: se encola y el fade ocurre en el hilo worker.
         """
         with self._lock:
             if self._is_ducked:
                 return
             self._is_ducked = True
-
-        t = threading.Thread(target=self._do_duck, daemon=True, name="DuckingOut")
-        t.start()
+        self._op_queue.put("duck")
 
     def restore(self):
         """
         Restaura el volumen original.
-        Operación no bloqueante: el fade ocurre en un hilo separado.
+        Operación no bloqueante: se encola y el fade ocurre en el hilo worker.
         """
         with self._lock:
             if not self._is_ducked:
                 return
             self._is_ducked = False
+        self._op_queue.put("restore")
 
-        t = threading.Thread(target=self._do_restore, daemon=True, name="DuckingIn")
-        t.start()
+    def _worker_loop(self):
+        """Procesa duck/restore en orden, siempre en este mismo hilo."""
+        while True:
+            op = self._op_queue.get()
+            try:
+                if op == "duck":
+                    self._do_duck()
+                elif op == "restore":
+                    self._do_restore()
+            except Exception as e:
+                logger.warning(f"DuckingManager worker error ({op}): {e}")
 
     # ------------------------------------------------------------------
     # Internos
@@ -253,7 +275,18 @@ class DuckingManager:
         """Ejecuta el fade-in en el hilo de ducking."""
         try:
             if self._session_states:
-                for pid, (session, orig) in list(self._session_states.items()):
+                # duck() y restore() corren en hilos daemon distintos cada vez
+                # (uno nuevo por llamada). Los objetos COM de pycaw son de un
+                # apartment de threading — usar en este hilo un objeto de
+                # sesión obtenido en el hilo de duck() es una violación de COM
+                # ("COM method call without VTable") que puede terminar en
+                # segfault. Reobtenemos las sesiones frescas acá y matcheamos
+                # por PID en vez de reusar el objeto viejo.
+                fresh_by_pid = {s.ProcessId: s for s in self._get_media_sessions()}
+                for pid, (_stale_session, orig) in list(self._session_states.items()):
+                    session = fresh_by_pid.get(pid)
+                    if session is None:
+                        continue
                     try:
                         current = self._get_session_volume(session)
                         if current is None:

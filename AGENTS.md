@@ -1,52 +1,52 @@
-# Reglas del Proyecto Byarox
+﻿# Reglas del Proyecto Byarox
 
 ---
 
-## Visión del producto
+## VisiÃ³n del producto
 
 Byarox es un **asistente de voz unificado** que se instala en cualquier PC.
 La marca/app es **Byarox** y el asistente hablado se llama **Rodolfo**.
-Detecta el contexto del usuario y enruta cada comando al módulo correcto,
-sin que el usuario tenga que pensar en qué herramienta usar.
+Detecta el contexto del usuario y enruta cada comando al mÃ³dulo correcto,
+sin que el usuario tenga que pensar en quÃ© herramienta usar.
 
 ---
 
 ## Componentes del sistema
 
-### `rodolfo-amigo/` — El cliente (Rodo.exe)
+### `rodolfo-amigo/` â€” El cliente (Rodo.exe)
 Lo que instala **cualquier usuario** (vos, amigos, clientes).
-- Escucha el micrófono y detecta el activador "oye rodolfo"
+- Escucha el micrÃ³fono y detecta el activador "oye rodo"
 - Transcribe con Google STT
-- Consulta el contexto al bot (¿estoy en Discord?)
-- Enruta el comando al módulo correcto via `orchestrator.py`
+- Consulta el contexto al bot (Â¿estoy en Discord?)
+- Enruta el comando al mÃ³dulo correcto via `orchestrator.py`
 - Muestra overlay visual de estado
-- Ícono en la bandeja del sistema
-- Se compila con PyInstaller → `Rodo.exe`
-- Se actualiza automáticamente desde GitHub Releases
+- Ãcono en la bandeja del sistema
+- Se compila con PyInstaller â†’ `Rodo.exe`
+- Se actualiza automÃ¡ticamente desde GitHub Releases
 
-#### `rodolfo-amigo/orchestrator.py` — Orquestador central
-Singleton que centraliza estado de sesión y decisiones de routing.
+#### `rodolfo-amigo/orchestrator.py` â€” Orquestador central
+Singleton que centraliza estado de sesiÃ³n y decisiones de routing.
 - `OrchestratorState`: estado mutable (discord_mode, spotify_token, voice_channel, etc.)
   - Soporta acceso tipo dict (`state["discord_mode"]`) para retrocompatibilidad con `_session`
-- `RodoOrchestrator.decide()`: reglas determinísticas de routing → `Action`
-  - Punto de extensión para IA futura (reemplazar con `decide_ai()` que llame Codex API)
+- `RodoOrchestrator.decide()`: reglas determinÃ­sticas de routing â†’ `Action`
+  - Punto de extensiÃ³n para IA futura (reemplazar con `decide_ai()` que llame Codex API)
   - `state.as_dict()` ya preparado como contexto para el LLM
-- `on_enter_voice()` / `on_exit_voice()`: resetean `discord_mode` automáticamente
-- `search_personal_library()`: busca en playlists y álbumes guardados del usuario (OAuth)
+- `on_enter_voice()` / `on_exit_voice()`: resetean `discord_mode` automÃ¡ticamente
+- `search_personal_library()`: busca en playlists y Ã¡lbumes guardados del usuario (OAuth)
 
-### `rodolfo-bot/` — El servidor compartido
+### `rodolfo-bot/` â€” El servidor compartido
 Corre en **una sola PC** (la tuya o un VPS). Sirve a todos los usuarios.
-- Bot de Discord: reproduce música en canales de voz
+- Bot de Discord: reproduce mÃºsica en canales de voz
 - API interna (aiohttp): recibe comandos de todos los clientes
-- Búsqueda: Spotify refina el texto → YouTube reproduce el audio
+- BÃºsqueda: Spotify refina el texto â†’ YouTube reproduce el audio
 - TTS en el canal de voz de Discord
 - Sistema de tokens por usuario (`tokens.py` + `tokens.json`)
 - OAuth Spotify personal por usuario (tokens guardados en `tokens.json`)
 
-### `rodolfo-host/` — El motor local (en desarrollo, fusión futura con amigo)
+### `rodolfo-host/` â€” El motor local (en desarrollo, fusiÃ³n futura con amigo)
 Capacidades avanzadas que corren **en la PC del usuario**:
 - Control de audio de Windows (volumen, dispositivos de salida)
-- Reproducción local vía Spotify Premium (Spotify API OAuth)
+- ReproducciÃ³n local vÃ­a Spotify Premium (Spotify API OAuth)
 - TTS local por los parlantes del usuario
 - Control de dispositivos Spotify (celular, parlantes, PC)
 
@@ -54,57 +54,57 @@ Capacidades avanzadas que corren **en la PC del usuario**:
 
 ## Arquitectura de contexto
 
-Cuando Byarox recibe un comando de música, decide a dónde enviarlo:
+Cuando Byarox recibe un comando de mÃºsica, decide a dÃ³nde enviarlo:
 
 ```
-"Oye Rodolfo pon flaca"
-        │
-        ▼
+"Oye Rodo pon flaca"
+        â”‚
+        â–¼
   [Orquestador] orchestrator.decide()
-  ¿discord_mode es True / False / None?
-        │
-   True  ──────────────→ bot Discord (reproduce en canal de voz)
-   False ──────────────→ modo local (Spotify URI o YouTube)
-   None  ──────────────→ Pregunta UNA VEZ: "¿Discord o local?"
-                              SÍ Discord → bot entra, reproduce en Discord
-                              NO → reproduce en local
+  Â¿discord_mode es True / False / None?
+        â”‚
+   True  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â†’ bot Discord (reproduce en canal de voz)
+   False â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â†’ modo local (Spotify URI o YouTube)
+   None  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â†’ Pregunta UNA VEZ: "Â¿Discord o local?"
+                              SÃ Discord â†’ bot entra, reproduce en Discord
+                              NO â†’ reproduce en local
 ```
 
 ### Reglas de contexto
-- **Implícito**: Byarox detecta Discord (vía RPC o polling `/context`) y pregunta una vez.
-- **Explícito**: Si el usuario especifica el destino, Rodolfo ejecuta directo.
-  - *"Oye Rodolfo entra a Discord"* → `discord_mode = True`
-  - *"Oye Rodolfo pon X en mis parlantes"* → `discord_mode = False`
-  - *"Oye Rodolfo cambia al celular"* → Spotify transfiere al móvil
-- **Memoria de sesión**: Una vez elegido el modo, Byarox lo recuerda hasta que el usuario cambie o se cierre.
-- **Reset automático**: Si el usuario sale de un canal de Discord → `discord_mode = False`.  
-  Si vuelve a entrar → `discord_mode = None` (vuelve a preguntar).
+- **ImplÃ­cito**: Byarox detecta Discord (vÃ­a RPC o polling `/context`) y pregunta una vez.
+- **ExplÃ­cito**: Si el usuario especifica el destino, Rodolfo ejecuta directo.
+  - *"Oye Rodo entra a Discord"* â†’ `discord_mode = True`
+  - *"Oye Rodo pon X en mis parlantes"* â†’ `discord_mode = False`
+  - *"Oye Rodo cambia al celular"* â†’ Spotify transfiere al mÃ³vil
+- **Memoria de sesiÃ³n**: Una vez elegido el modo, Byarox lo recuerda hasta que el usuario cambie o se cierre.
+- **Reset automÃ¡tico**: Si el usuario sale de un canal de Discord â†’ `discord_mode = False`.  
+  Si vuelve a entrar â†’ `discord_mode = None` (vuelve a preguntar).
 
 ---
 
-## Flujo de reproducción local
+## Flujo de reproducciÃ³n local
 
 ```
-"Oye Rodolfo pon mi álbum 365"
-        │
-        ▼
-  [amigo.py] discord_mode is False → modo local
-        │
-        ▼
-  1. ¿Usuario tiene Spotify OAuth vinculado? (orchestrator.has_spotify)
-     SÍ → search_personal_library("365", spotify_type="album")
-          Busca en playlists + álbumes guardados del usuario
-          Si score ≥ 0.5 → abre Spotify URI directamente ✓
-     NO → continúa al paso 2
-        │
-        ▼
-  2. Busca en Spotify público (api.py → /command?local=true)
-     album/playlist → sp.search(type="album,playlist") con scoring
-     artist → sp.search(type="artist")
-     track → sp.search(type="track")
-     Si URI encontrado → cliente abre URI en Spotify ✓
-        │
-        ▼
+"Oye Rodo pon mi Ã¡lbum 365"
+        â”‚
+        â–¼
+  [amigo.py] discord_mode is False â†’ modo local
+        â”‚
+        â–¼
+  1. Â¿Usuario tiene Spotify OAuth vinculado? (orchestrator.has_spotify)
+     SÃ â†’ search_personal_library("365", spotify_type="album")
+          Busca en playlists + Ã¡lbumes guardados del usuario
+          Si score â‰¥ 0.5 â†’ abre Spotify URI directamente âœ“
+     NO â†’ continÃºa al paso 2
+        â”‚
+        â–¼
+  2. Busca en Spotify pÃºblico (api.py â†’ /command?local=true)
+     album/playlist â†’ sp.search(type="album,playlist") con scoring
+     artist â†’ sp.search(type="artist")
+     track â†’ sp.search(type="track")
+     Si URI encontrado â†’ cliente abre URI en Spotify âœ“
+        â”‚
+        â–¼
   3. Fallback: YouTube (abre en navegador)
 ```
 
@@ -113,47 +113,47 @@ Cuando Byarox recibe un comando de música, decide a dónde enviarlo:
 ## Flujo OAuth Spotify personal
 
 ```
-"Oye Rodolfo vincula mi Spotify"
-        │
-        ▼
-  [amigo.py] → detecta intent "link_spotify" → abre /spotify/login en bot
-        │
-        ▼
+"Oye Rodo vincula mi Spotify"
+        â”‚
+        â–¼
+  [amigo.py] â†’ detecta intent "link_spotify" â†’ abre /spotify/login en bot
+        â”‚
+        â–¼
   [bot] GET /spotify/login?user_token=<token_rodo>
-        → redirige a Spotify OAuth
-        → callback en /spotify/callback?state=<username_key>
-        → guarda {access_token, refresh_token, expires_at} en tokens.json bajo el usuario
-        │
-        ▼
-  [bot] devuelve página HTML de confirmación
-        │
-        ▼
-  [amigo.py] → carga token de la API (/me/spotify_status)
-             → orchestrator.set_spotify_token(access_token)
-             → TTS: "Spotify vinculado"
+        â†’ redirige a Spotify OAuth
+        â†’ callback en /spotify/callback?state=<username_key>
+        â†’ guarda {access_token, refresh_token, expires_at} en tokens.json bajo el usuario
+        â”‚
+        â–¼
+  [bot] devuelve pÃ¡gina HTML de confirmaciÃ³n
+        â”‚
+        â–¼
+  [amigo.py] â†’ carga token de la API (/me/spotify_status)
+             â†’ orchestrator.set_spotify_token(access_token)
+             â†’ TTS: "Spotify vinculado"
 ```
 
 ### Claves especiales en tokens.json
 - Usuarios normales: `{"token": "...", "name": "...", "active": true, "spotify": {...}}`
-- Dueño del bot (master token): clave `"owner"` — se crea automáticamente al vincular Spotify
-  - `auth_user_key=None` en la API → se usa `"owner"` como clave de lookup
+- DueÃ±o del bot (master token): clave `"owner"` â€” se crea automÃ¡ticamente al vincular Spotify
+  - `auth_user_key=None` en la API â†’ se usa `"owner"` como clave de lookup
 
 ---
 
-## Cómo agregar una nueva herramienta o habilidad
+## CÃ³mo agregar una nueva herramienta o habilidad
 
-Cada nueva capacidad de Rodo sigue este patrón:
+Cada nueva capacidad de Rodo sigue este patrÃ³n:
 
-### 1. Definir el módulo
+### 1. Definir el mÃ³dulo
 Crear (o usar) una carpeta en `rodolfo-bot/modules/` o una clase en `rodolfo-host/`:
 ```
 rodolfo-bot/modules/
-    music/      ← ya existe: búsqueda + reproducción Discord
-    spotify/    ← próximo: control Spotify Premium local
-    devices/    ← futuro: dispositivos de audio Windows
+    music/      â† ya existe: bÃºsqueda + reproducciÃ³n Discord
+    spotify/    â† prÃ³ximo: control Spotify Premium local
+    devices/    â† futuro: dispositivos de audio Windows
 ```
 
-### 2. Exponer la acción en la API del bot
+### 2. Exponer la acciÃ³n en la API del bot
 Agregar un endpoint en `rodolfo-bot/api.py`:
 ```python
 @app.post("/nombre_accion")
@@ -162,90 +162,90 @@ async def nombre_accion(data: dict, ...):
 ```
 
 ### 3. Registrar el comando en el parser
-Agregar la detección en `rodolfo-bot/command_parser.py`:
+Agregar la detecciÃ³n en `rodolfo-bot/command_parser.py`:
 ```python
 if any(w in cmd for w in ["palabra_clave", "variante"]):
     return {"action": "nombre_accion", "param": ...}
 ```
 
-### 4. Manejar la acción en el cliente
-En `rodolfo-amigo/amigo.py`, el cliente ya envía todo al bot vía `/command`.
-Si la acción requiere lógica local (overlay, TTS local, etc.), agregarla antes del envío.
+### 4. Manejar la acciÃ³n en el cliente
+En `rodolfo-amigo/amigo.py`, el cliente ya envÃ­a todo al bot vÃ­a `/command`.
+Si la acciÃ³n requiere lÃ³gica local (overlay, TTS local, etc.), agregarla antes del envÃ­o.
 
-### 5. Documentar aquí
-Agregar la herramienta en la sección de componentes y en los pendientes.
+### 5. Documentar aquÃ­
+Agregar la herramienta en la secciÃ³n de componentes y en los pendientes.
 
 ---
 
 ## Reglas para Codex
 
-1. **Nunca subir versiones sin permiso explícito.**
+1. **Nunca subir versiones sin permiso explÃ­cito.**
    - No cambiar `version.py` ni `version.json` sin que el usuario lo pida.
-   - No crear releases ni ejecutar `actualizar_release.ps1` sin autorización.
+   - No crear releases ni ejecutar `actualizar_release.ps1` sin autorizaciÃ³n.
 
-2. **El activador de voz principal es "oye rodolfo".**
-   - `ACTIVATOR_NAMES = ("oye rodolfo", "rodolfo")`.
+2. **El activador de voz principal es "oye rodo".**
+   - `ACTIVATOR_NAMES = ("oye rodo", "rodo", "oye rodolfo", "rodolfo")`.
    - No volver a `rodo` ni usar la marca `byarox` como activador sin pedirlo.
 
-3. **No hacer commits automáticos.**
-   - Solo commitear cuando el usuario lo pida explícitamente.
+3. **No hacer commits automÃ¡ticos.**
+   - Solo commitear cuando el usuario lo pida explÃ­citamente.
 
 4. **Antes de cualquier cambio grande, confirmar el plan.**
-   - Si el cambio toca más de 2 archivos o cambia comportamiento visible, describir qué se va a hacer antes de hacerlo.
+   - Si el cambio toca mÃ¡s de 2 archivos o cambia comportamiento visible, describir quÃ© se va a hacer antes de hacerlo.
 
 5. **Mantener retrocompatibilidad.**
-   - `config.json` ya está en las PCs de los amigos. No cambiar sus campos sin migración.
+   - `config.json` ya estÃ¡ en las PCs de los amigos. No cambiar sus campos sin migraciÃ³n.
 
 6. **Respetar el enrutamiento por contexto.**
-   - Nunca hardcodear un destino (Discord o local). Siempre pasar por la lógica de contexto.
+   - Nunca hardcodear un destino (Discord o local). Siempre pasar por la lÃ³gica de contexto.
 
 ---
 
-## Stack técnico
+## Stack tÃ©cnico
 
 | Componente | Stack |
 |---|---|
 | Cliente (`rodolfo-amigo`) | Python + SpeechRecognition + Google STT + pystray + tkinter + PyInstaller |
-| Orquestador (`orchestrator.py`) | Python puro — sin dependencias externas; listo para Codex API |
+| Orquestador (`orchestrator.py`) | Python puro â€” sin dependencias externas; listo para Codex API |
 | Servidor (`rodolfo-bot`) | Python + discord.py + yt-dlp + edge-tts + spotipy + aiohttp + ngrok |
 | Motor local (`rodolfo-host`) | Python + pygame + nircmd + spotipy OAuth + edge-tts |
-| STT | Google STT (principal) — Whisper local (futuro fallback) |
-| Música | Spotify busca metadata → YouTube reproduce audio |
-| Spotify personal | spotipy OAuth — playlists y álbumes del usuario |
-| Tokens | `tokens.json` — un token por usuario, Spotify tokens embebidos |
-| Extracción del exe | `AppData\Local\Rodo\` (estable entre actualizaciones) |
+| STT | Google STT (principal) â€” Whisper local (futuro fallback) |
+| MÃºsica | Spotify busca metadata â†’ YouTube reproduce audio |
+| Spotify personal | spotipy OAuth â€” playlists y Ã¡lbumes del usuario |
+| Tokens | `tokens.json` â€” un token por usuario, Spotify tokens embebidos |
+| ExtracciÃ³n del exe | `AppData\Local\Rodo\` (estable entre actualizaciones) |
 
 ---
 
-## Flujo de una actualización
+## Flujo de una actualizaciÃ³n
 
-1. Hacer los cambios en el código.
-2. Pedir permiso para subir versión.
-3. Actualizar `version.py` y `version.json` con la nueva versión y changelog.
+1. Hacer los cambios en el cÃ³digo.
+2. Pedir permiso para subir versiÃ³n.
+3. Actualizar `version.py` y `version.json` con la nueva versiÃ³n y changelog.
 4. Compilar: `pyinstaller rodo.spec --noconfirm` (en `rodolfo-amigo/`).
 5. Commit + push.
 6. Ejecutar `actualizar_release.ps1 -Token "..." -Tag "vX.Y.Z" -Notes "..."`.
-7. Los usuarios reciben la actualización automáticamente al abrir Rodo.
+7. Los usuarios reciben la actualizaciÃ³n automÃ¡ticamente al abrir Rodo.
 
 ---
 
 ## Pendientes (en orden de prioridad)
 
 ### Arquitectura
-- [x] Orquestador central (`orchestrator.py`) con estado de sesión y routing
-- [x] Lógica de contexto en `rodolfo-amigo`: preguntar una vez, recordar por sesión
+- [x] Orquestador central (`orchestrator.py`) con estado de sesiÃ³n y routing
+- [x] LÃ³gica de contexto en `rodolfo-amigo`: preguntar una vez, recordar por sesiÃ³n
 - [x] Reset de `discord_mode` al salir/entrar de canal de Discord
-- [ ] Fusión de `rodolfo-host` en `rodolfo-amigo` (un solo exe con todas las capacidades)
-- [ ] Integrar `orchestrator.decide()` con lógica LLM (Codex API) como reemplazo de reglas
+- [ ] FusiÃ³n de `rodolfo-host` en `rodolfo-amigo` (un solo exe con todas las capacidades)
+- [ ] Integrar `orchestrator.decide()` con lÃ³gica LLM (Codex API) como reemplazo de reglas
 
 ### Spotify personal
-- [x] OAuth flow completo: vinculación por voz ("Oye Rodolfo vincula mi Spotify")
-- [x] Búsqueda en biblioteca personal (playlists + álbumes guardados)
+- [x] OAuth flow completo: vinculaciÃ³n por voz ("Oye Rodo vincula mi Spotify")
+- [x] BÃºsqueda en biblioteca personal (playlists + Ã¡lbumes guardados)
 - [x] Soporte multi-usuario: cada amigo vincula su propio Spotify
-- [ ] Cambio de dispositivo Spotify por voz ("Oye Rodolfo cambia al celular")
-- [ ] Listar dispositivos de salida por voz ("Oye Rodolfo qué dispositivos tengo")
+- [ ] Cambio de dispositivo Spotify por voz ("Oye Rodo cambia al celular")
+- [ ] Listar dispositivos de salida por voz ("Oye Rodo quÃ© dispositivos tengo")
 
-### Música Discord
+### MÃºsica Discord
 - [ ] Ver cola en Discord
 - [ ] Letras de canciones
 
@@ -256,5 +256,5 @@ Agregar la herramienta en la sección de componentes y en los pendientes.
 ### Infraestructura
 - [ ] Auto-restart del bot si se cae
 - [ ] Hosting VPS 24/7
-- [ ] Panel web de administración
-- [ ] Certificado de código (para evitar aviso "desconocido" en Windows)
+- [ ] Panel web de administraciÃ³n
+- [ ] Certificado de cÃ³digo (para evitar aviso "desconocido" en Windows)

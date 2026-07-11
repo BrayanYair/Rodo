@@ -1,15 +1,15 @@
-# Byarox
+﻿# Byarox
 
 Byarox es un asistente de voz personal para controlar musica en Discord, YouTube/Spotify y, mas adelante, dispositivos del hogar.
 
 - Marca/app: **Byarox**
 - Asistente hablado: **Rodolfo**
-- Activador principal: **"Oye Rodolfo"**
+- Activador principal: **"Oye Rodo"**
 
 Ejemplo:
 
 ```text
-Oye Rodolfo, pon despacito
+Oye Rodo, pon despacito
 ```
 
 ## Arquitectura
@@ -24,8 +24,8 @@ Oye Rodolfo, pon despacito
 
 1. Crear/configurar el bot de Discord en `rodolfo-bot/`.
 2. Configurar el cliente en `rodolfo-amigo/`.
-3. Probar comandos con `Oye Rodolfo`.
-4. Vincular Spotify diciendo: `Oye Rodolfo, vincula mi Spotify`.
+3. Probar comandos con `Oye Rodo`.
+4. Vincular Spotify diciendo: `Oye Rodo, vincula mi Spotify`.
 
 ## Nota de nombres
 

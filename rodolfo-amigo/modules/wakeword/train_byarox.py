@@ -1,5 +1,5 @@
 """
-train_byarox.py — Entrena un clasificador personalizado para el wake word "byarox".
+train_byarox.py — Entrena un clasificador personalizado para el wake word "oye rodo".
 
 Usa el embedding_model.onnx de openwakeword + LogisticRegression de sklearn.
 NO requiere PyTorch.
@@ -24,7 +24,7 @@ log = logging.getLogger("train_byarox")
 _HERE = os.path.dirname(os.path.abspath(__file__))
 TMP_POS = os.path.join(_HERE, "tmp_positive")
 TMP_NEG = os.path.join(_HERE, "tmp_negative")
-OUTPUT_PKL = os.path.join(_HERE, "byarox_verifier.pkl")
+OUTPUT_PKL = os.path.join(_HERE, "rodo_verifier.pkl")
 
 VOICES = [
     ("es-PE-AlexNeural",   ["+0%", "+15%", "-10%"]),
@@ -32,11 +32,19 @@ VOICES = [
     ("es-ES-AlvaroNeural", ["+0%", "+15%", "-10%"]),
     ("es-AR-TomasNeural",  ["+0%", "+15%", "-10%"]),
 ]
-# Variantes fonéticas de "byarox" para mayor cobertura
+# Variantes fonéticas de "oye rodo" para mayor cobertura
 TEXTS_POSITIVE = [
-    "byarox", "byarox", "byarox",
-    "byarox pon", "byarox para", "byarox siguiente",
-    "byarox sigue", "byarox pausa",
+    "oye rodo", "oye rodo", "oye rodo",
+    "hey rodo", "ey rodo",
+    "oye rodo pon", "oye rodo para", "oye rodo siguiente",
+    "oye rodo sigue", "oye rodo pausa", "oye rodo pon musica",
+    "rodo pon", "rodo para",
+]
+
+TEXTS_NEGATIVE = [
+    "oye todo", "oye lodo", "oye modo", "oye robo", "oye rolo",
+    "todo", "lodo", "modo", "robo", "rolo",
+    "pon todo", "no todo", "de todos modos", "me robo", "el lodo",
 ]
 
 
@@ -114,24 +122,65 @@ def _generate_all_positives() -> list:
     return wav_files
 
 
+async def _generate_negative_mp3(mp3_path: str, text: str, voice: str, rate: str):
+    """Genera un mp3 negativo con edge_tts."""
+    import edge_tts
+    communicate = edge_tts.Communicate(text, voice, rate=rate)
+    await communicate.save(mp3_path)
+
+
 def _generate_negatives(n: int = 40) -> list:
-    """Genera WAVs negativos sintéticos: silencio y ruido gaussiano."""
+    """Genera WAVs negativos: frases parecidas, silencio y ruido gaussiano."""
     os.makedirs(TMP_NEG, exist_ok=True)
     import wave, struct
+
+    tasks = []
+    for voice, rates in VOICES:
+        for rate in rates:
+            for text in TEXTS_NEGATIVE:
+                tasks.append((voice, rate, text))
+
+    import random
+    random.shuffle(tasks)
+    tasks = tasks[: min(len(tasks), n // 2)]
+
+    wav_files = []
+    log.info(f"Generando {len(tasks)} muestras negativas habladas con edge_tts...")
+
+    async def _run_all():
+        mp3_files = []
+        for i, (voice, rate, text) in enumerate(tasks):
+            mp3_path = os.path.join(TMP_NEG, f"neg_voice_{i:03d}.mp3")
+            try:
+                await _generate_negative_mp3(mp3_path, text, voice, rate)
+                mp3_files.append((i, mp3_path))
+                log.info(f"  - neg_voice_{i:03d}.mp3 [{voice}, rate={rate}, text={text}]")
+            except Exception as e:
+                log.warning(f"  ! neg_voice_{i:03d} falló: {e}")
+        return mp3_files
+
+    mp3_files = asyncio.run(_run_all())
+    for i, mp3_path in mp3_files:
+        wav_path = os.path.join(TMP_NEG, f"neg_voice_{i:03d}.wav")
+        if _mp3_to_wav_16k(mp3_path, wav_path):
+            wav_files.append(wav_path)
+            os.remove(mp3_path)
+        else:
+            log.warning(f"  ! Conversión fallida para neg_voice_{i:03d}.mp3")
 
     SR = 16000
     DURATION = 1.5  # segundos
     N_SAMPLES = int(SR * DURATION)
-    files = []
+    synthetic_count = max(10, n - len(wav_files))
 
-    for i in range(n):
+    for i in range(synthetic_count):
         wav_path = os.path.join(TMP_NEG, f"neg_{i:03d}.wav")
-        if i < n // 2:
+        if i < synthetic_count // 2:
             # Silencio puro
             samples = np.zeros(N_SAMPLES, dtype=np.int16)
         else:
             # Ruido gaussiano de baja amplitud (ambiente)
-            noise_amp = np.random.randint(100, 800)
+            noise_amp = np.random.randint(100, 3000)
             samples = np.random.normal(0, noise_amp, N_SAMPLES).clip(-32768, 32767).astype(np.int16)
 
         with wave.open(wav_path, "wb") as wf:
@@ -139,15 +188,15 @@ def _generate_negatives(n: int = 40) -> list:
             wf.setsampwidth(2)
             wf.setframerate(SR)
             wf.writeframes(samples.tobytes())
-        files.append(wav_path)
+        wav_files.append(wav_path)
 
-    log.info(f"Negativos generados: {len(files)}")
-    return files
+    log.info(f"Negativos generados: {len(wav_files)}")
+    return wav_files
 
 
 # ─── Extracción de embeddings ─────────────────────────────────────────────────
 
-def _extract_embeddings_from_wav(wav_path: str, oww_model) -> np.ndarray:
+def _extract_embeddings_from_wav(wav_path: str, oww_model, min_rms: float = 0.0) -> np.ndarray:
     """
     Lee un WAV 16kHz mono y extrae embeddings usando el preprocessor de openwakeword.
     Retorna array de shape (N_windows, 1536) donde 1536 = 16 frames * 96 dims.
@@ -175,6 +224,9 @@ def _extract_embeddings_from_wav(wav_path: str, oww_model) -> np.ndarray:
     # Procesar en chunks, tomando snapshots del feature buffer tras cada chunk
     for i in range(0, len(data) - CHUNK, CHUNK):
         chunk = data[i : i + CHUNK]
+        rms = float(np.sqrt(np.mean((chunk.astype(np.float32) / 32768.0) ** 2)))
+        if rms < min_rms:
+            continue
         oww_model.predict(chunk)
         # get_features(16) devuelve shape (1, 16, 96) — la ventana más reciente
         feats = oww_model.preprocessor.get_features(16)  # (1, 16, 96)
@@ -200,7 +252,7 @@ def _build_dataset(pos_wavs: list, neg_wavs: list):
 
     log.info("Extrayendo embeddings de positivos...")
     for wav in pos_wavs:
-        emb = _extract_embeddings_from_wav(wav, oww)
+        emb = _extract_embeddings_from_wav(wav, oww, min_rms=0.01)
         if emb.shape[0] > 0:
             X_list.append(emb)
             y_list.extend([1] * emb.shape[0])
@@ -238,7 +290,7 @@ def _train_classifier(X: np.ndarray, y: np.ndarray) -> object:
     acc = clf.score(X, y)
     pos_prob = clf.predict_proba(X[y == 1])[:, 1].mean()
     neg_prob = clf.predict_proba(X[y == 0])[:, 1].mean()
-    log.info(f"Train acc: {acc:.2%}  |  P(byarox|pos)={pos_prob:.3f}  P(byarox|neg)={neg_prob:.3f}")
+    log.info(f"Train acc: {acc:.2%}  |  P(rodo|pos)={pos_prob:.3f}  P(rodo|neg)={neg_prob:.3f}")
     return clf
 
 
@@ -246,7 +298,7 @@ def _train_classifier(X: np.ndarray, y: np.ndarray) -> object:
 
 def train():
     log.info("=" * 60)
-    log.info("Entrenamiento del clasificador 'byarox'")
+    log.info("Entrenamiento del clasificador 'oye rodo'")
     log.info("=" * 60)
 
     # 1. Generar positivos
@@ -277,7 +329,7 @@ def train():
             shutil.rmtree(d)
             log.info(f"Limpiado: {d}")
 
-    log.info("\n✓ Entrenamiento completado. WakeWordEngine usará byarox_verifier.pkl.")
+    log.info("\n✓ Entrenamiento completado. WakeWordEngine usará rodo_verifier.pkl.")
     return True
 
 

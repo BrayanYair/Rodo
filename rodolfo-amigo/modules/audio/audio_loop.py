@@ -2,7 +2,7 @@
 audio_loop.py — Stream de audio siempre activo (full-duplex).
 
 Combina detección de wake word + VAD en un único stream PyAudio 16kHz.
-Cuando detecta "byarox" pone el segmento completo (pre-buffer + comando) en audio_queue.
+Cuando detecta "oye rodo" pone el segmento completo (pre-buffer + comando) en audio_queue.
 
 Uso:
     loop = AudioLoop()
@@ -25,23 +25,25 @@ logger = logging.getLogger(__name__)
 SAMPLE_RATE  = 16_000
 VAD_CHUNK    = 512          # Silero VAD: 32ms a 16kHz
 OWW_CHUNK    = 1_280        # openwakeword: 80ms a 16kHz
-RING_SECS    = 0.8          # pre-buffer — suficiente para capturar el inicio de "byarox"
+RING_SECS    = 0.8          # pre-buffer — suficiente para capturar el inicio de "oye rodo"
 RING_CHUNKS  = int(RING_SECS * SAMPLE_RATE / VAD_CHUNK)  # en chunks de 512 samples
+MIN_WAKE_RMS = 0.008        # descarta silencio/ruido muy bajo
+MAX_WAKE_ZCR = 0.25         # descarta ruido blanco antes del clasificador
 
 
 def _find_verifier_pkl() -> str | None:
-    """Busca byarox_verifier.pkl en source y modo frozen."""
+    """Busca rodo_verifier.pkl en source y modo frozen."""
     candidates = []
 
     # Modo fuente: modules/audio/ → modules/ → raíz del proyecto → modules/wakeword/
     here = os.path.dirname(os.path.abspath(__file__))
     root = os.path.dirname(os.path.dirname(here))   # rodolfo-amigo/
-    candidates.append(os.path.join(root, "modules", "wakeword", "byarox_verifier.pkl"))
+    candidates.append(os.path.join(root, "modules", "wakeword", "rodo_verifier.pkl"))
 
     # Modo frozen (PyInstaller)
     if getattr(sys, "frozen", False):
         candidates.append(
-            os.path.join(sys._MEIPASS, "modules", "wakeword", "byarox_verifier.pkl")
+            os.path.join(sys._MEIPASS, "modules", "wakeword", "rodo_verifier.pkl")
         )
 
     for p in candidates:
@@ -54,7 +56,7 @@ class AudioLoop:
     """
     Stream PyAudio 16kHz continuo con dos fases:
 
-    WAKE:    Escuchando wake word "byarox".
+    WAKE:    Escuchando wake word "oye rodo".
              Ring buffer de 0.8s activo para no perder el inicio del audio.
 
     CAPTURE: Wake word detectado.
@@ -70,7 +72,7 @@ class AudioLoop:
 
     def __init__(
         self,
-        wakeword_threshold: float = 0.5,
+        wakeword_threshold: float = 0.75,
         vad_threshold:      float = 0.5,
         silence_ms:         int   = 800,
         max_command_ms:     int   = 7_000,
@@ -142,7 +144,7 @@ class AudioLoop:
             logger.error(f"AudioLoop: SileroVAD no disponible: {e}")
             return
 
-        # Cargar byarox_verifier.pkl (opcional — mejora precisión)
+        # Cargar rodo_verifier.pkl (opcional — mejora precisión)
         verifier = None
         pkl_path = _find_verifier_pkl()
         if pkl_path:
@@ -262,6 +264,9 @@ class AudioLoop:
 
     def _ww_score(self, chunk: np.ndarray, oww, verifier) -> float:
         """Calcula el score de wake word para un chunk de ~1280 samples."""
+        if not self._passes_audio_gate(chunk):
+            return 0.0
+
         prediction = oww.predict(chunk)     # actualiza estado interno + devuelve scores
 
         if verifier is not None:
@@ -279,3 +284,13 @@ class AudioLoop:
         # Fallback: score nativo de hey_jarvis
         scores = list(prediction.values())
         return float(max(scores)) if scores else 0.0
+
+    def _passes_audio_gate(self, chunk: np.ndarray) -> bool:
+        """Filtro barato antes del wakeword: descarta silencio y ruido blanco."""
+        audio_f32 = chunk.astype(np.float32) / 32768.0
+        rms = float(np.sqrt(np.mean(audio_f32 ** 2)))
+        if rms < MIN_WAKE_RMS:
+            return False
+        signs = np.signbit(audio_f32)
+        zcr = float(np.mean(signs[1:] != signs[:-1])) if len(signs) > 1 else 0.0
+        return zcr <= MAX_WAKE_ZCR

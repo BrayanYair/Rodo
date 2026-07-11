@@ -541,9 +541,15 @@ async def resolve_by_type(
                     raise ValueError("sin resultados")
                 album  = items[0]
                 print(f"[SPOTIFY] Álbum: '{album['name']}' — {album['artists'][0]['name']}")
-                return await resolve_playlist_lazy(
+                tracks, pending = await resolve_playlist_lazy(
                     f"https://open.spotify.com/album/{album['id']}", shuffle=shuffle
                 )
+                if not tracks and not pending:
+                    # resolve_playlist_lazy se traga sus propios errores (ej. 401 de
+                    # Spotify) y devuelve vacío en vez de tirar excepción — forzamos
+                    # el fallback a YouTube de más abajo en vez de volver con nada.
+                    raise ValueError(f"no se pudieron obtener canciones del álbum '{album['name']}'")
+                return tracks, pending
 
             elif spotify_type == "playlist":
                 r     = sp.search(query, limit=3, type="playlist")
@@ -552,9 +558,12 @@ async def resolve_by_type(
                     raise ValueError("sin resultados")
                 pl = items[0]
                 print(f"[SPOTIFY] Playlist: '{pl['name']}'")
-                return await resolve_playlist_lazy(
+                tracks, pending = await resolve_playlist_lazy(
                     f"https://open.spotify.com/playlist/{pl['id']}", shuffle=shuffle
                 )
+                if not tracks and not pending:
+                    raise ValueError(f"no se pudieron obtener canciones de la playlist '{pl['name']}'")
+                return tracks, pending
 
             elif spotify_type == "artist":
                 r     = sp.search(query, limit=1, type="artist")

@@ -22,15 +22,15 @@ def normalize_query(query: str) -> str:
     y sufijos (fórmulas de cortesía).
     
     Ejemplos:
-      "Oye Rodolfo pon flaca porfa" -> "flaca"
+      "Oye Rodo pon flaca porfa" -> "flaca"
       "ponme despacito" -> "despacito"
     """
     query = normalize_text(query)
     
     # Remover activador y verbos iniciales
-    # "oye rodolfo ponme ", "rodolfo pon ", "ponme ", "pon ", "poner "
+    # "oye rodo ponme ", "rodo pon ", "oye rodolfo ponme ", "rodolfo pon ", "ponme ", "pon ", "poner "
     query = re.sub(
-        r"^(?:(?:oye\s+)?rodolfo\s+)?(?:ponme\s+|pon\s+|poner\s+|reproduce\s+|busca\s+|quiero\s+escuchar\s+)?",
+        r"^(?:(?:oye\s+)?(?:rodo|rodolfo)\s+)?(?:ponme\s+|pon\s+|poner\s+|reproduce\s+|busca\s+|quiero\s+escuchar\s+)?",
         "",
         query
     )

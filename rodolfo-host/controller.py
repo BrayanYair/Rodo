@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import json
 import asyncio
@@ -12,7 +12,7 @@ import socket
 import queue
 from datetime import datetime
 
-# Forzar UTF-8 en la salida estándar para evitar errores con acentos / flechas
+# Forzar UTF-8 en la salida estÃ¡ndar para evitar errores con acentos / flechas
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -31,10 +31,10 @@ import edge_tts
 import whisper
 import speech_recognition as sr
 
-# Respuestas naturales con variantes (en vez de frases robóticas fijas)
+# Respuestas naturales con variantes (en vez de frases robÃ³ticas fijas)
 import responses as R
 
-# Overlay visual de estado (opcional — falla silenciosamente si no está disponible)
+# Overlay visual de estado (opcional â€” falla silenciosamente si no estÃ¡ disponible)
 try:
     from overlay import StatusOverlay
     _OVERLAY_OK = True
@@ -45,13 +45,13 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).parent
 
-# ─── Performance log ──────────────────────────────────────────────────────────
+# â”€â”€â”€ Performance log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Registra latencia STT + tiempo hasta primer speak() de cada comando.
-# Úsalo para encontrar cuellos de botella y comparar mejoras en el tiempo.
+# Ãšsalo para encontrar cuellos de botella y comparar mejoras en el tiempo.
 _PERF_LOG = BASE_DIR / "performance_log.jsonl"
 
 def _log_perf(raw: str, action: str, stt_ms: int, first_response_ms, query: str = ""):
-    """Una línea JSON por comando: qué se dijo, qué entendió, cuánto tardó."""
+    """Una lÃ­nea JSON por comando: quÃ© se dijo, quÃ© entendiÃ³, cuÃ¡nto tardÃ³."""
     try:
         entry = {
             "ts":                datetime.now().isoformat(timespec="seconds"),
@@ -74,16 +74,16 @@ class VoiceAudioController:
     API_TOKEN             = os.getenv("API_TOKEN", "")
     WAKE_WORD_ENABLED     = os.getenv("WAKE_WORD_ENABLED", "true").lower() == "true"
     ACTIVATOR_REQUIRED    = os.getenv("ACTIVATOR_REQUIRED", "true").lower() == "true"
-    ACTIVATOR_NAMES       = ("oye rodolfo", "rodolfo")
-    # Dónde habla Rodolfo:
-    #   "discord" → solo por el canal de voz (tú estás en el canal, no hay eco)  ✅ default
-    #   "local"   → solo por tu PC (privado, amigos no oyen)
-    #   "both"    → ambos (genera eco si estás en el canal)
+    ACTIVATOR_NAMES       = ("oye rodo", "rodo", "oye rodolfo", "rodolfo")
+    # DÃ³nde habla Rodolfo:
+    #   "discord" â†’ solo por el canal de voz (tÃº estÃ¡s en el canal, no hay eco)  âœ… default
+    #   "local"   â†’ solo por tu PC (privado, amigos no oyen)
+    #   "both"    â†’ ambos (genera eco si estÃ¡s en el canal)
     TTS_OUTPUT            = os.getenv("TTS_OUTPUT", "discord").lower()
 
-    # Sonidos suaves cuando ejecuta acciones (success/error). Desactívalos si molestan.
+    # Sonidos suaves cuando ejecuta acciones (success/error). DesactÃ­valos si molestan.
     CHIMES_ENABLED        = os.getenv("CHIMES_ENABLED", "false").lower() == "true"
-    # Whisper como fallback cuando Google STT está offline.
+    # Whisper como fallback cuando Google STT estÃ¡ offline.
     # Por defecto DESACTIVADO porque alucina con ruido/cortes de red.
     # Si tu internet es inestable, ponlo en "true".
     WHISPER_FALLBACK      = os.getenv("WHISPER_FALLBACK", "false").lower() == "true"
@@ -114,7 +114,7 @@ class VoiceAudioController:
         self.ACTIVATOR_TIMEOUT   = 6.0
         self._debounce           = {}
         self._debounce_secs      = 2.0
-        self._last_audio_ts      = time.time()  # última vez que el queue recibió audio real
+        self._last_audio_ts      = time.time()  # Ãºltima vez que el queue recibiÃ³ audio real
         # Overlay visual de estado
         self._overlay = None
         if _OVERLAY_OK:
@@ -124,14 +124,14 @@ class VoiceAudioController:
                 print("[OVERLAY] Indicador de estado activo.")
             except Exception as e:
                 print(f"[OVERLAY] No se pudo iniciar: {e}")
-        # Timing de rendimiento — se actualizan en listen_command() y speak()
-        self._t_listen_start     = 0.0   # cuando el audio sale del queue (usuario dejó de hablar)
-        self._t_stt_done         = 0.0   # cuando Google STT devolvió el texto
-        self._t_first_speak      = None  # cuando se llamó speak() por primera vez en este ciclo
+        # Timing de rendimiento â€” se actualizan en listen_command() y speak()
+        self._t_listen_start     = 0.0   # cuando el audio sale del queue (usuario dejÃ³ de hablar)
+        self._t_stt_done         = 0.0   # cuando Google STT devolviÃ³ el texto
+        self._t_first_speak      = None  # cuando se llamÃ³ speak() por primera vez en este ciclo
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Inicialización
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # InicializaciÃ³n
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _initialize_components(self):
         pygame.mixer.init()
@@ -143,18 +143,18 @@ class VoiceAudioController:
             print("[INIT] Whisper listo.")
         else:
             self.whisper_model = None
-            print("[INIT] Whisper desactivado — usando solo Google STT (más rápido, sin alucinaciones).")
+            print("[INIT] Whisper desactivado â€” usando solo Google STT (mÃ¡s rÃ¡pido, sin alucinaciones).")
 
         self.recognizer = sr.Recognizer()
-        # Bajamos pause_threshold para responder más rápido cuando el usuario
-        # termina de hablar (default 0.8s → 0.5s reduce la latencia notablemente)
+        # Bajamos pause_threshold para responder mÃ¡s rÃ¡pido cuando el usuario
+        # termina de hablar (default 0.8s â†’ 0.5s reduce la latencia notablemente)
         self.recognizer.pause_threshold = 0.5
         self.recognizer.non_speaking_duration = 0.4
         self.microphone = sr.Microphone()
-        print("[INIT] Calibrando micrófono...")
+        print("[INIT] Calibrando micrÃ³fono...")
         with self.microphone as source:
             self.recognizer.adjust_for_ambient_noise(source, duration=1)
-        print("[INIT] Micrófono calibrado.")
+        print("[INIT] MicrÃ³fono calibrado.")
 
         # Background listener: siempre escuchando, sin gaps ni timeouts
         self.audio_queue = queue.Queue()
@@ -174,7 +174,7 @@ class VoiceAudioController:
                 pass
 
     def _start_background_listening(self):
-        """Background listener: el mic está siempre activo en un hilo aparte.
+        """Background listener: el mic estÃ¡ siempre activo en un hilo aparte.
         Las frases detectadas se ponen en self.audio_queue. Sin gaps ni timeouts."""
         def callback(recognizer, audio):
             # Si estoy hablando localmente, descarto para evitar feedback
@@ -193,7 +193,7 @@ class VoiceAudioController:
         print("[ESCUCHANDO] Mic siempre activo (background).")
 
     def _restart_background_listener(self):
-        """Reinicia el background listener si el watchdog detecta que se trabó."""
+        """Reinicia el background listener si el watchdog detecta que se trabÃ³."""
         print("[WATCHDOG] Deteniendo listener anterior...")
         try:
             if self._stop_background_listener:
@@ -211,8 +211,8 @@ class VoiceAudioController:
 
         time.sleep(0.8)
         try:
-            # No recalibramos aquí para no entrar en conflicto con el micrófono.
-            # La calibración inicial al arrancar es suficiente.
+            # No recalibramos aquÃ­ para no entrar en conflicto con el micrÃ³fono.
+            # La calibraciÃ³n inicial al arrancar es suficiente.
             self._start_background_listening()
             print("[WATCHDOG] Listener reiniciado correctamente.")
         except Exception as e:
@@ -262,7 +262,7 @@ class VoiceAudioController:
         self.chimes["error"] = create_beep_sound([180.0, 150.0], 350, 0.18)
 
     def play_chime(self, name):
-        # Si los chimes están desactivados via .env, no hacemos nada
+        # Si los chimes estÃ¡n desactivados via .env, no hacemos nada
         if not getattr(self, "CHIMES_ENABLED", True):
             return
         sound = self.chimes.get(name)
@@ -279,14 +279,14 @@ class VoiceAudioController:
                 wakeword_models=["hey_jarvis"],
                 inference_framework="onnx",
             )
-            print("[INIT] Wake word listo — di 'Hey Jarvis' para activar.")
+            print("[INIT] Wake word listo â€” di 'Hey Jarvis' para activar.")
         except Exception as e:
             print(f"[INIT] Wake word no disponible ({e}). Corriendo sin wake word.")
             self.wake_model = None
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # TTS  —  Edge-TTS (voces neurales de Microsoft)
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # TTS  â€”  Edge-TTS (voces neurales de Microsoft)
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def speak(self, text, can_interrupt=True, broadcast=True):
         clean = self._clean_text(text)
@@ -294,12 +294,12 @@ class VoiceAudioController:
         if self._t_first_speak is None:
             self._t_first_speak = time.time()   # primer speak() de este ciclo
 
-        self._ov("speaking")   # feedback inmediato: el bot está por hablar
+        self._ov("speaking")   # feedback inmediato: el bot estÃ¡ por hablar
 
         play_local      = self.TTS_OUTPUT in ("local", "both")
         send_to_discord = broadcast and self.TTS_OUTPUT in ("discord", "both")
 
-        # Enviar al bot en paralelo para que tus amigos también lo escuchen
+        # Enviar al bot en paralelo para que tus amigos tambiÃ©n lo escuchen
         if send_to_discord:
             threading.Thread(
                 target=self._broadcast_to_discord,
@@ -308,15 +308,15 @@ class VoiceAudioController:
             ).start()
 
         if play_local:
-            # Reproducción local + tracking del estado (para interrupciones)
+            # ReproducciÃ³n local + tracking del estado (para interrupciones)
             loop = asyncio.new_event_loop()
             try:
                 loop.run_until_complete(self._speak_edge(clean, can_interrupt))
             finally:
                 loop.close()
         elif send_to_discord:
-            # Solo Discord — bloqueamos brevemente para que la cola de
-            # comandos no se atropelle (estimación: ~3 palabras por segundo)
+            # Solo Discord â€” bloqueamos brevemente para que la cola de
+            # comandos no se atropelle (estimaciÃ³n: ~3 palabras por segundo)
             words = max(1, len(clean.split()))
             with self._lock:
                 self.is_speaking = True
@@ -324,13 +324,13 @@ class VoiceAudioController:
             with self._lock:
                 self.is_speaking = False
 
-        self._ov("idle")   # habló, vuelve a escuchar
+        self._ov("idle")   # hablÃ³, vuelve a escuchar
 
     def _auth_headers(self):
         return {"Authorization": f"Bearer {self.API_TOKEN}"} if self.API_TOKEN else {}
 
     def _broadcast_to_discord(self, text):
-        """Envía el texto al bot para que lo hable por el canal de voz."""
+        """EnvÃ­a el texto al bot para que lo hable por el canal de voz."""
         try:
             requests.post(
                 f"{self.MUSIC_BOT_URL}/say",
@@ -382,28 +382,28 @@ class VoiceAudioController:
             pass
 
     def _clean_text(self, text):
-        for old, new in {"¿": "", "¡": "", "®": "", "  ": " "}.items():
+        for old, new in {"Â¿": "", "Â¡": "", "Â®": "", "  ": " "}.items():
             text = text.replace(old, new)
         return text.strip()
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # STT  —  Whisper local
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # STT  â€”  Whisper local
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def listen_command(self, timeout=None):
-        """Espera la próxima frase de la cola del background listener y la transcribe.
-        Sin gaps: el mic está siempre activo, no perdemos audio entre llamadas."""
+        """Espera la prÃ³xima frase de la cola del background listener y la transcribe.
+        Sin gaps: el mic estÃ¡ siempre activo, no perdemos audio entre llamadas."""
         timeout = timeout or self.config["listen_timeout"]
         try:
             audio = self.audio_queue.get(timeout=timeout)
         except queue.Empty:
             return ""
 
-        self._t_listen_start = time.time()   # audio listo = usuario dejó de hablar
-        self._last_audio_ts  = time.time()   # listener sigue vivo (llegó audio al queue)
-        self._ov("processing")               # el bot recibió audio — el usuario lo verá de inmediato
+        self._t_listen_start = time.time()   # audio listo = usuario dejÃ³ de hablar
+        self._last_audio_ts  = time.time()   # listener sigue vivo (llegÃ³ audio al queue)
+        self._ov("processing")               # el bot recibiÃ³ audio â€” el usuario lo verÃ¡ de inmediato
 
-        # Google STT (rápido y muy preciso en español)
+        # Google STT (rÃ¡pido y muy preciso en espaÃ±ol)
         google_offline = False
         try:
             old_timeout = socket.getdefaulttimeout()
@@ -414,17 +414,17 @@ class VoiceAudioController:
                 socket.setdefaulttimeout(old_timeout)
             if text:
                 self._t_stt_done = time.time()   # STT completado
-                print(f"[ENTENDÍ] {text}")
+                print(f"[ENTENDÃ] {text}")
                 return text
         except sr.UnknownValueError:
-            # Audio incomprensible — NO usamos Whisper porque alucina con basura.
-            # Mejor descartar y esperar el próximo audio.
+            # Audio incomprensible â€” NO usamos Whisper porque alucina con basura.
+            # Mejor descartar y esperar el prÃ³ximo audio.
             return ""
         except sr.RequestError as e:
-            print(f"[GOOGLE OFFLINE/LENTO ({e})] — usando Whisper")
+            print(f"[GOOGLE OFFLINE/LENTO ({e})] â€” usando Whisper")
             google_offline = True
 
-        # Solo fallback a Whisper si Google está offline Y el fallback está habilitado
+        # Solo fallback a Whisper si Google estÃ¡ offline Y el fallback estÃ¡ habilitado
         if not google_offline or not self.whisper_model:
             return ""
 
@@ -437,7 +437,7 @@ class VoiceAudioController:
             result = self.whisper_model.transcribe(audio_np, language="es", fp16=False)
             text = result["text"].lower().strip()
             if text and not self._is_gibberish(text):
-                print(f"[ENTENDÍ via Whisper] {text}")
+                print(f"[ENTENDÃ via Whisper] {text}")
                 return text
             elif text:
                 print(f"[WHISPER gibberish descartado] '{text[:40]}'")
@@ -451,34 +451,34 @@ class VoiceAudioController:
         if not text or len(text.strip()) < 2:
             return True
         text = text.strip()
-        spanish_chars = set("abcdefghijklmnñopqrstuvwxyzáéíóúüABCDEFGHIJKLMNÑOPQRSTUVWXYZÁÉÍÓÚÜ")
+        spanish_chars = set("abcdefghijklmnÃ±opqrstuvwxyzÃ¡Ã©Ã­Ã³ÃºÃ¼ABCDEFGHIJKLMNÃ‘OPQRSTUVWXYZÃÃ‰ÃÃ“ÃšÃœ")
         alpha = [c for c in text if c.isalpha()]
         if not alpha:
             return True
         spanish_count = sum(1 for c in alpha if c in spanish_chars)
-        # Si menos del 70% son caracteres del alfabeto español → gibberish
+        # Si menos del 70% son caracteres del alfabeto espaÃ±ol â†’ gibberish
         if spanish_count / len(alpha) < 0.7:
             return True
-        # Frases típicas de alucinación de Whisper con silencio
+        # Frases tÃ­picas de alucinaciÃ³n de Whisper con silencio
         common_hallucinations = {
-            "gracias por ver el video", "gracias por ver el vídeo",
-            "subtítulos por la comunidad de amara.org", "subtítulos",
+            "gracias por ver el video", "gracias por ver el vÃ­deo",
+            "subtÃ­tulos por la comunidad de amara.org", "subtÃ­tulos",
             "gracias", "thank you", "you", ".", "..",
         }
         if text.strip() in common_hallucinations:
             return True
-        # Palabras inglesas típicas de alucinación (cuando Whisper improvisa con audio basura)
+        # Palabras inglesas tÃ­picas de alucinaciÃ³n (cuando Whisper improvisa con audio basura)
         english_red_flags = {
             "the", "was", "with", "this", "that", "have", "been", "would",
             "could", "should", "happened", "tighten", "treasures", "constructed",
             "video", "subscribe", "channel", "thanks", "watching",
         }
-        words = [w.strip(".,!?¿¡;:") for w in text.lower().split()]
+        words = [w.strip(".,!?Â¿Â¡;:") for w in text.lower().split()]
         english_count = sum(1 for w in words if w in english_red_flags)
         if english_count >= 2:
             return True
 
-        # Demasiados números sueltos (típico de alucinación con audio basura)
+        # Demasiados nÃºmeros sueltos (tÃ­pico de alucinaciÃ³n con audio basura)
         if len(words) >= 4:
             numeric_words = sum(1 for w in words if w.replace(".", "").isdigit())
             if numeric_words / len(words) > 0.3:
@@ -487,16 +487,16 @@ class VoiceAudioController:
             tiny_words = sum(1 for w in words if 0 < len(w) <= 2 and w.isalpha())
             if tiny_words >= 3:
                 return True
-            # Promedio de longitud muy bajo → garabato
+            # Promedio de longitud muy bajo â†’ garabato
             avg_len = sum(len(w) for w in words) / len(words)
             if avg_len < 2.5:
                 return True
 
         return False
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Detección de interrupciones  (Google STT — rápido para clips cortos)
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # DetecciÃ³n de interrupciones  (Google STT â€” rÃ¡pido para clips cortos)
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _check_for_interruptions(self):
         rec = sr.Recognizer()
@@ -512,7 +512,7 @@ class VoiceAudioController:
                 finally:
                     socket.setdefaulttimeout(old_timeout)
                 
-                print(f"[INTERRUPCIÓN] {cmd}")
+                print(f"[INTERRUPCIÃ“N] {cmd}")
                 self._handle_interruption_text(cmd)
             except (sr.WaitTimeoutError, sr.UnknownValueError, sr.RequestError):
                 pass
@@ -532,9 +532,9 @@ class VoiceAudioController:
             self.interrupt_speech        = True
             self.detected_device_command = None
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Wake Word  —  openwakeword ("Hey Jarvis")
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # Wake Word  â€”  openwakeword ("Hey Jarvis")
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def wait_for_wake_word(self):
         if not self.wake_model:
@@ -560,18 +560,18 @@ class VoiceAudioController:
                 score    = scores.get("hey_jarvis", 0)
                 max_score_window = max(max_score_window, score)
 
-                # Heartbeat cada ~2 segundos: muestra que el loop está vivo + el mejor score reciente
+                # Heartbeat cada ~2 segundos: muestra que el loop estÃ¡ vivo + el mejor score reciente
                 tick += 1
                 if tick % 25 == 0:
                     print(f"  [escuchando] vol={volume:6.0f}  mejor-score-reciente={max_score_window:.2f}")
                     max_score_window = 0
 
-                # Cualquier score > 0.05 lo mostramos (te ayuda a ver si te está oyendo)
+                # Cualquier score > 0.05 lo mostramos (te ayuda a ver si te estÃ¡ oyendo)
                 if score > 0.05:
-                    print(f"  [wake-score] {score:.2f}  {'█' * int(score*20)}")
+                    print(f"  [wake-score] {score:.2f}  {'â–ˆ' * int(score*20)}")
 
                 if score > self.config["wake_word_threshold"]:
-                    print(f"[ACTIVADO ✅] score={score:.2f}")
+                    print(f"[ACTIVADO âœ…] score={score:.2f}")
                     stream.stop_stream()
                     stream.close()
                     p.terminate()
@@ -579,9 +579,9 @@ class VoiceAudioController:
         except Exception as e:
             print(f"[WAKE WORD ERROR] {e}")
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Control de volumen  —  nircmd.exe
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # Control de volumen  â€”  nircmd.exe
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _nircmd(self, *args):
         path = BASE_DIR / "nircmd.exe"
@@ -600,13 +600,13 @@ class VoiceAudioController:
         self.speak(R.volume_mute(), can_interrupt=False)
 
     def volume_set(self, level: int):
-        val = int(level * 655.35)          # 0-100  →  0-65535
+        val = int(level * 655.35)          # 0-100  â†’  0-65535
         self._nircmd("setsysvolume", str(val))
         self.speak(R.volume_set(level), can_interrupt=False)
 
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Parseo de comandos
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def parse_volume_level(self, cmd):
         m = re.search(r"\b(\d{1,3})\b", cmd)
@@ -632,22 +632,22 @@ class VoiceAudioController:
         cmd = "".join(c for c in cmd if unicodedata.category(c) != "Mn")
         cmd = re.sub(r"[^\w\s]", "", cmd.lower().strip())
 
-        # ── Detección del activador "Rodolfo" (en cualquier parte) ────────
-        # Google STT a veces antepone basura tipo "ahí está rodolfo..."
-        # así que buscamos el activador en cualquier lugar del comando.
+        # â”€â”€ DetecciÃ³n del activador "Rodolfo" (en cualquier parte) â”€â”€â”€â”€â”€â”€â”€â”€
+        # Google STT a veces antepone basura tipo "ahÃ­ estÃ¡ rodolfo..."
+        # asÃ­ que buscamos el activador en cualquier lugar del comando.
         names_re = "|".join(re.escape(name) for name in sorted(self.ACTIVATOR_NAMES, key=len, reverse=True))
         activator_re = re.compile(rf"(?<!\w)(?:{names_re})(?!\w)[,\s]*")
         m = activator_re.search(cmd)
         has_activator = bool(m)
         if has_activator:
-            # Tomamos todo lo que viene DESPUÉS del activador como el comando
+            # Tomamos todo lo que viene DESPUÃ‰S del activador como el comando
             cmd = cmd[m.end():].strip()
 
         # Modo activador: si no fue invocado, ignorar silenciosamente
         if self.ACTIVATOR_REQUIRED and not has_activator:
             return {"action": "ignored"}
 
-        # Dijo el activador pero nada útil después → saludo
+        # Dijo el activador pero nada Ãºtil despuÃ©s â†’ saludo
         if not cmd or len(cmd) < 2:
             return {"action": "greet"}
 
@@ -657,13 +657,13 @@ class VoiceAudioController:
         cmd = re.sub(r"\bbong\b", "pon", cmd)
         cmd = re.sub(r"\bporn\b", "pon", cmd)
         cmd = re.sub(r"\bpum\b", "pon", cmd)
-        cmd = re.sub(r"\bpomp[oó]n\b", "pon", cmd)
+        cmd = re.sub(r"\bpomp[oÃ³]n\b", "pon", cmd)
         cmd = re.sub(r"\bpompom\b", "pon", cmd)
         cmd = re.sub(r"\bpun\b", "pon", cmd)
         cmd = re.sub(r"\bstock\b", "stop", cmd)
         cmd = re.sub(r"\bskype\b", "skip", cmd)
 
-        # ── Volumen ────────────────────────────────────────────────────────
+        # â”€â”€ Volumen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         # 1. Mutear/Silenciar
         if any(w in cmd for w in [
             "silencio", "mutear", "silenciar", "mute", "sin sonido",
@@ -691,9 +691,9 @@ class VoiceAudioController:
         ]) or (any(w in cmd for w in ["baja", "bajar", "bajale"]) and any(w in cmd for w in ["volumen", "sonido", "musica", "audio"])):
             return {"action": "volume_down"}
 
-        # ── Música: STOP / PAUSE / SKIP rápido (priorizar antes de play) ──
+        # â”€â”€ MÃºsica: STOP / PAUSE / SKIP rÃ¡pido (priorizar antes de play) â”€â”€
         # Captura "rodolfo stop", "rodolfo para", "rodolfo pon stop la musica"...
-        # Si el comando contiene una palabra de stop CLARA y no es título de canción
+        # Si el comando contiene una palabra de stop CLARA y no es tÃ­tulo de canciÃ³n
         if re.search(r"\b(stop|deten|detener|detenga|detiene|para|parar|pare|paren)\b.*\b(musica|cancion|tema|todo|esto|esta|reproduccion)\b", cmd) or \
            cmd in ("stop", "para", "deten", "detener", "detenga", "alto", "basta", "pare", "paren"):
             return {"action": "stop_music"}
@@ -702,8 +702,8 @@ class VoiceAudioController:
         if re.search(r"\b(salta|saltala|pasala|pasalo|siguiente)\b", cmd):
             return {"action": "skip_music"}
 
-        # ── Música: AGREGAR A LA COLA (intención explícita) ───────────────
-        # "luego pon X" / "después coloca X" / "encola X" / "agrega X a la cola"
+        # â”€â”€ MÃºsica: AGREGAR A LA COLA (intenciÃ³n explÃ­cita) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # "luego pon X" / "despuÃ©s coloca X" / "encola X" / "agrega X a la cola"
         queue_match = re.match(
             r"^(?:luego|despues|posteriormente|enseguida|en\s+seguida|"
             r"al\s+rato|despuecito|cuando\s+(?:termine|acabe|se\s+acabe))\s+"
@@ -719,8 +719,8 @@ class VoiceAudioController:
             if rest and len(rest) > 1:
                 return {"action": "queue_music", "query": rest}
 
-        # "encola X" / "agrega X a la cola" / "agrégala X" / "mete X" / etc.
-        # Acepta sufijos "-la/-lo/-me" pegados al verbo (agrégala, encolalo, metelo)
+        # "encola X" / "agrega X a la cola" / "agrÃ©gala X" / "mete X" / etc.
+        # Acepta sufijos "-la/-lo/-me" pegados al verbo (agrÃ©gala, encolalo, metelo)
         queue_match2 = re.match(
             r"^(?:encola(?:la|lo|me)?|agrega(?:la|lo|me)?|agregar|"
             r"mete(?:la|lo|me)?|meter|"
@@ -738,7 +738,7 @@ class VoiceAudioController:
             if rest and len(rest) > 1:
                 return {"action": "queue_music", "query": rest}
 
-        # ── Atajo: si menciona "a la cola" o "en cola" en cualquier parte,
+        # â”€â”€ Atajo: si menciona "a la cola" o "en cola" en cualquier parte,
         # tratarlo como queue_music aunque el verbo principal sea "pon" o "metele"
         if re.search(r"\b(?:a\s+la\s+cola|en\s+la\s+cola|en\s+cola|a\s+cola)\b", cmd):
             song = re.sub(
@@ -756,7 +756,7 @@ class VoiceAudioController:
             if song and len(song) > 1:
                 return {"action": "queue_music", "query": song}
 
-        # ── Música: poner canción (con extracción del título) ─────────────
+        # â”€â”€ MÃºsica: poner canciÃ³n (con extracciÃ³n del tÃ­tulo) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         play_verbs = [
             "ponme", "pon", "pone", "poner", "ponle", "ponele",
             "reproduce", "reproduceme", "reproducir", "play",
@@ -777,7 +777,7 @@ class VoiceAudioController:
                 rest = re.sub(r"^(?:musica|cancion|tema|rola|track|tonada|nota)\s*(?:de\s+)?", "", rest)
                 rest = re.sub(r"^(?:de\s+)", "", rest)
                 rest = re.sub(r"\s*(?:por\s+favor|porfa|porfis)\s*$", "", rest)
-                # Si termina con "a la cola" → es queue_music
+                # Si termina con "a la cola" â†’ es queue_music
                 if re.search(r"\s+a\s+la\s+cola$", rest):
                     rest = re.sub(r"\s+a\s+la\s+cola$", "", rest).strip()
                     if rest and len(rest) > 1:
@@ -785,10 +785,10 @@ class VoiceAudioController:
                 rest = rest.strip()
                 if rest and len(rest) > 1 and rest not in ("musica", "cancion", "tema", "algo", "rola"):
                     return {"action": "play_music", "query": rest}
-                # Si solo dijo el verbo sin canción → preguntará
+                # Si solo dijo el verbo sin canciÃ³n â†’ preguntarÃ¡
                 return {"action": "play_music"}
 
-        # ── Música: skip / siguiente ──────────────────────────────────────
+        # â”€â”€ MÃºsica: skip / siguiente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if any(w in cmd for w in [
             "siguiente musica", "siguiente cancion", "siguiente tema", "siguiente",
             "skip", "saltar cancion", "saltar la cancion", "saltala", "saltalo",
@@ -800,7 +800,7 @@ class VoiceAudioController:
         ]):
             return {"action": "skip_music"}
 
-        # ── Música: stop completo ─────────────────────────────────────────
+        # â”€â”€ MÃºsica: stop completo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if any(w in cmd for w in [
             "detener musica", "deten musica", "deten la musica", "detenga musica", "detenga la musica",
             "parar musica", "para la musica", "para musica", "pare la musica", "pare musica",
@@ -812,7 +812,7 @@ class VoiceAudioController:
         ]):
             return {"action": "stop_music"}
 
-        # ── Música: pausa ─────────────────────────────────────────────────
+        # â”€â”€ MÃºsica: pausa â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if any(w in cmd for w in [
             "pausa la musica", "pausa musica", "pausar musica", "pausa",
             "pausala", "pausalo",
@@ -821,7 +821,7 @@ class VoiceAudioController:
         ]):
             return {"action": "pause_music"}
 
-        # ── Música: reanudar ──────────────────────────────────────────────
+        # â”€â”€ MÃºsica: reanudar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if any(w in cmd for w in [
             "reanuda musica", "reanuda la musica", "reanudala",
             "continua musica", "continua la musica", "continuala",
@@ -831,7 +831,7 @@ class VoiceAudioController:
         ]):
             return {"action": "resume_music"}
 
-        # ── Música: estado / nombre canción actual ────────────────────────
+        # â”€â”€ MÃºsica: estado / nombre canciÃ³n actual â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if any(w in cmd for w in [
             "que esta sonando", "que cancion es", "que cancion es esta",
             "que suena", "que estoy escuchando",
@@ -841,7 +841,7 @@ class VoiceAudioController:
         ]):
             return {"action": "music_status"}
 
-        # ── Música: eliminar SOLO la última canción de la cola ────────────
+        # â”€â”€ MÃºsica: eliminar SOLO la Ãºltima canciÃ³n de la cola â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if re.search(
             r"\b(elimina|eliminar|borra|borrar|quita|quitar|saca|sacar|"
             r"elimino|elimine|elimino|borro|quito|saco)\s+"
@@ -854,7 +854,7 @@ class VoiceAudioController:
         ]):
             return {"action": "remove_last"}
 
-        # ── Música: limpiar cola completa ─────────────────────────────────
+        # â”€â”€ MÃºsica: limpiar cola completa â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if any(w in cmd for w in [
             "limpia la cola", "limpiar cola", "limpia cola",
             "limpia la lista", "limpiar lista", "limpia lista",
@@ -868,19 +868,19 @@ class VoiceAudioController:
             "quita todas las canciones en cola", "quita las canciones de la cola",
             "elimina la cola", "eliminar cola", "elimina cola",
             "elimina la lista", "eliminar lista", "elimina lista",
-            "elimino la lista", "eliminó la lista", "eligio la lista",
+            "elimino la lista", "eliminÃ³ la lista", "eligio la lista",
             "eliminan la lista", "eliminan la cola",
         ]):
             return {"action": "clear_queue"}
 
-        # ── Música: bot fuera del canal ───────────────────────────────────
+        # â”€â”€ MÃºsica: bot fuera del canal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if any(w in cmd for w in [
             "sal del canal", "desconecta bot", "sal de la voz",
             "vete del canal", "vete", "desconectate", "salte del canal",
         ]):
             return {"action": "disconnect_music"}
 
-        # ── Salir del asistente ───────────────────────────────────────────
+        # â”€â”€ Salir del asistente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if any(w in cmd for w in [
             "salir", "cerrar", "terminar", "apagate", "duermete",
             "adios", "hasta luego", "chao", "chau", "nos vemos",
@@ -888,18 +888,18 @@ class VoiceAudioController:
         ]):
             return {"action": "exit"}
 
-        # ── Ayuda ─────────────────────────────────────────────────────────
+        # â”€â”€ Ayuda â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if any(w in cmd for w in [
             "ayuda", "help", "que puedo decir", "comandos",
             "que sabes hacer", "que puedes hacer", "como te uso", "que haces",
         ]):
             return {"action": "help"}
 
-        # ── Interrupción durante el habla ─────────────────────────────────
+        # â”€â”€ InterrupciÃ³n durante el habla â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if any(w in cmd for w in ["para", "stop", "alto", "basta", "detente", "espera", "calla"]):
             return {"action": "interrupt"}
 
-        # ── Discord (mensaje de texto) ────────────────────────────────────
+        # â”€â”€ Discord (mensaje de texto) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if any(w in cmd for w in [
             "escribir en discord", "mensaje en discord", "enviar mensaje",
             "manda mensaje", "mandar mensaje", "manda un mensaje",
@@ -907,24 +907,24 @@ class VoiceAudioController:
             if "musica" not in cmd and "play" not in cmd:
                 return {"action": "write_discord"}
 
-        # Fallback: el activador está pero no coincidió con ningún verbo conocido.
-        # Solo asumimos play_music si lo que sigue parece UN TÍTULO real:
+        # Fallback: el activador estÃ¡ pero no coincidiÃ³ con ningÃºn verbo conocido.
+        # Solo asumimos play_music si lo que sigue parece UN TÃTULO real:
         #   - 2+ palabras, O
         #   - 1 palabra de 5+ caracteres
-        # Esto evita falsos positivos como "rodolfo no" → reproduce "No"
+        # Esto evita falsos positivos como "rodolfo no" â†’ reproduce "No"
         if cmd:
             words = cmd.split()
             looks_like_title = (
                 len(words) >= 2
                 or (len(words) == 1 and len(cmd) >= 5)
             )
-            # Filler/interjecciones que NO son títulos
+            # Filler/interjecciones que NO son tÃ­tulos
             filler = {
-                "hola", "buenas", "alo", "oye", "hey", "rodolfo",
-                "no", "si", "sí", "ya", "ah", "eh", "ok", "vale",
+                "hola", "buenas", "alo", "oye", "hey", "rodo", "rodolfo",
+                "no", "si", "sÃ­", "ya", "ah", "eh", "ok", "vale",
                 "bueno", "buena", "claro", "obvio", "tal", "y",
-                "que", "qué", "como", "cómo", "donde", "dónde",
-                "este", "esa", "ese", "aja", "ajá", "ahá", "mhm",
+                "que", "quÃ©", "como", "cÃ³mo", "donde", "dÃ³nde",
+                "este", "esa", "ese", "aja", "ajÃ¡", "ahÃ¡", "mhm",
                 "uno", "dos", "tres", "uy", "ay",
             }
             if looks_like_title and cmd not in filler:
@@ -932,9 +932,9 @@ class VoiceAudioController:
 
         return {"action": "unknown"}
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Métricas de rendimiento
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # MÃ©tricas de rendimiento
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _record_cmd(self, raw: str, action: str, query: str = ""):
         """Calcula latencias y las guarda en performance_log.jsonl + consola."""
@@ -944,28 +944,28 @@ class VoiceAudioController:
         stt_ms   = int((t_st - t0) * 1000) if t_st > t0 else 0
         first_ms = int((t_sp - t_st) * 1000) if t_sp else None
         _log_perf(raw, action, stt_ms, first_ms, query)
-        rsp = f"rsp={first_ms}ms" if first_ms is not None else "rsp=—"
+        rsp = f"rsp={first_ms}ms" if first_ms is not None else "rsp=â€”"
         print(f"[PERF] stt={stt_ms}ms | {rsp} | {action}" + (f" | '{query[:40]}'" if query else ""))
 
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Ayuda
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def show_help(self):
         self.speak(
-            "Llámame con Oye Rodolfo antes de cualquier comando. "
-            "Para música: Oye Rodolfo pon despacito, Oye Rodolfo pásala, Oye Rodolfo pausa, "
-            "Oye Rodolfo sigue, Oye Rodolfo qué está sonando, Oye Rodolfo detén la música. "
-            "Para encolar: Oye Rodolfo después pon X, Oye Rodolfo limpia la cola. "
+            "LlÃ¡mame con Oye Rodo antes de cualquier comando. "
+            "Para mÃºsica: Oye Rodo pon despacito, Oye Rodo pÃ¡sala, Oye Rodo pausa, "
+            "Oye Rodo sigue, Oye Rodo quÃ© estÃ¡ sonando, Oye Rodo detÃ©n la mÃºsica. "
+            "Para encolar: Oye Rodo despuÃ©s pon X, Oye Rodo limpia la cola. "
             "Funciona con YouTube y enlaces de Spotify. "
-            "Para volumen: Oye Rodolfo sube el volumen, Oye Rodolfo bájale, Oye Rodolfo silencio. "
-            "Para cerrar: Oye Rodolfo adiós.",
+            "Para volumen: Oye Rodo sube el volumen, Oye Rodo bÃ¡jale, Oye Rodo silencio. "
+            "Para cerrar: Oye Rodo adiÃ³s.",
             can_interrupt=True,
         )
 
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Discord
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _discord_post(self, content):
         if not self.DISCORD_WEBHOOK_URL:
@@ -975,13 +975,13 @@ class VoiceAudioController:
             r = requests.post(self.DISCORD_WEBHOOK_URL, json={"content": content}, timeout=5)
             return r.status_code == 204
         except requests.Timeout:
-            self.speak("Discord tardó demasiado.", can_interrupt=False)
+            self.speak("Discord tardÃ³ demasiado.", can_interrupt=False)
             return False
         except Exception as e:
             print(f"[DISCORD ERROR] {e}")
             return False
 
-    # ── Música vía bot local ─────────────────────────────────────────────────
+    # â”€â”€ MÃºsica vÃ­a bot local â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _music_bot(self, method, path, data=None):
         try:
@@ -998,15 +998,15 @@ class VoiceAudioController:
             return {"error": str(e)}
 
     def play_music(self, query=None, queue_intent=False):
-        # Si no vino con la canción en el comando, preguntamos
+        # Si no vino con la canciÃ³n en el comando, preguntamos
         if not query:
-            self.speak("¿Qué música quieres?", can_interrupt=False)
+            self.speak("Â¿QuÃ© mÃºsica quieres?", can_interrupt=False)
             query = self.listen_command(timeout=10)
             if not query:
-                self.speak("No escuché la música.", can_interrupt=False)
+                self.speak("No escuchÃ© la mÃºsica.", can_interrupt=False)
                 return
 
-        # ── Si menciona "playlist" sin URL → buscar entre las guardadas ──
+        # â”€â”€ Si menciona "playlist" sin URL â†’ buscar entre las guardadas â”€â”€
         query_lower = query.lower()
         if "playlist" in query_lower and "http" not in query_lower:
             matched = None
@@ -1024,13 +1024,13 @@ class VoiceAudioController:
                     self.speak(f"No tengo esa playlist. Las guardadas son: {names}.", can_interrupt=False)
                 else:
                     self.speak(
-                        "No tengo playlists guardadas. Para usarlas, agrega PLAYLIST_NOMBRE=URL en tu archivo de configuración.",
+                        "No tengo playlists guardadas. Para usarlas, agrega PLAYLIST_NOMBRE=URL en tu archivo de configuraciÃ³n.",
                         can_interrupt=False, broadcast=False,
                     )
                 return
         else:
             # Feedback inmediato: ultra-corto para que el usuario sepa que Rodolfo
-            # lo escuchó ANTES de que empiece la búsqueda (1-3s de silencio).
+            # lo escuchÃ³ ANTES de que empiece la bÃºsqueda (1-3s de silencio).
             self.speak("Un momento.", can_interrupt=False)
 
         result = self._music_bot("POST", "/play", {"query": query})
@@ -1137,27 +1137,27 @@ class VoiceAudioController:
             self.speak(R.queue_empty_remove(), can_interrupt=False)
 
     def write_discord_message(self):
-        self.speak("¿Qué quieres escribir?", can_interrupt=False)
+        self.speak("Â¿QuÃ© quieres escribir?", can_interrupt=False)
         msg = self.listen_command(timeout=10)
         if not msg:
-            self.speak("No escuché ningún mensaje.", can_interrupt=False)
+            self.speak("No escuchÃ© ningÃºn mensaje.", can_interrupt=False)
             return
         if self._discord_post(msg):
             self.speak("Mensaje enviado.", can_interrupt=False)
         else:
             self.speak("No pude enviar el mensaje.", can_interrupt=False)
 
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Bucle principal
-    # ─────────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def run(self):
         self.speak(R.greet_initial(), can_interrupt=False)
 
-        # Watchdog: si pasan más de N segundos SIN que llegue audio al queue
+        # Watchdog: si pasan mÃ¡s de N segundos SIN que llegue audio al queue
         # (no cuenta los casos en que llega audio pero el STT no entiende)
-        # el background listener probablemente murió.
-        _WATCHDOG_SECS = 300   # 5 minutos sin NINGÚN audio en el mic → restart
+        # el background listener probablemente muriÃ³.
+        _WATCHDOG_SECS = 300   # 5 minutos sin NINGÃšN audio en el mic â†’ restart
 
         while True:
             try:
@@ -1168,11 +1168,11 @@ class VoiceAudioController:
 
                 cmd = self.listen_command()
                 if not cmd:
-                    # Solo disparar si pasó mucho tiempo sin que el queue reciba audio
+                    # Solo disparar si pasÃ³ mucho tiempo sin que el queue reciba audio
                     # (el timestamp se actualiza en listen_command cada vez que llega audio)
                     secs_silent = time.time() - self._last_audio_ts
                     if secs_silent > _WATCHDOG_SECS:
-                        print(f"[WATCHDOG] {secs_silent:.0f}s sin audio del mic — reiniciando listener...")
+                        print(f"[WATCHDOG] {secs_silent:.0f}s sin audio del mic â€” reiniciando listener...")
                         self._ov("error")
                         self._restart_background_listener()
                         self._last_audio_ts = time.time()   # reset para no disparar de nuevo
@@ -1184,11 +1184,11 @@ class VoiceAudioController:
                 parsed = self.parse_command(cmd)
                 action = parsed["action"]
 
-                # Sin el activador "Rodolfo" → ignoramos en silencio o usamos la memoria
+                # Sin el activador "Rodolfo" â†’ ignoramos en silencio o usamos la memoria
                 if action == "ignored":
                     if time.time() - self.last_activator_time < self.ACTIVATOR_TIMEOUT:
-                        cmd_with_act = f"oye rodolfo {cmd}"
-                        print(f"  └─ [COMPLETADO CON MEMORIA] -> '{cmd_with_act}'")
+                        cmd_with_act = f"oye rodo {cmd}"
+                        print(f"  â””â”€ [COMPLETADO CON MEMORIA] -> '{cmd_with_act}'")
                         parsed = self.parse_command(cmd_with_act)
                         action = parsed["action"]
                         self.last_activator_time = 0.0  # Usar y consumir
@@ -1198,19 +1198,19 @@ class VoiceAudioController:
                         self._record_cmd(cmd, "ignored")
                         continue
 
-                # Resetear la memoria tras una acción real distinta de saludar
+                # Resetear la memoria tras una acciÃ³n real distinta de saludar
                 if action != "greet":
                     self.last_activator_time = 0.0
 
-                print(f"[ACCIÓN] {action}")
+                print(f"[ACCIÃ“N] {action}")
 
-                # Debounce: bloquea la misma acción si se repite muy rápido (spam de voz)
+                # Debounce: bloquea la misma acciÃ³n si se repite muy rÃ¡pido (spam de voz)
                 _DEBOUNCE_ACTIONS = {"skip_music", "stop_music", "pause_music", "resume_music"}
                 if action in _DEBOUNCE_ACTIONS:
                     _now = time.time()
                     _last = self._debounce.get(action, 0.0)
                     if _now - _last < self._debounce_secs:
-                        print(f"[DEBOUNCE] '{action}' ignorado ({_now - _last:.1f}s — espera {self._debounce_secs}s)")
+                        print(f"[DEBOUNCE] '{action}' ignorado ({_now - _last:.1f}s â€” espera {self._debounce_secs}s)")
                         self._record_cmd(cmd, f"debounced_{action}")
                         continue
                     self._debounce[action] = _now
@@ -1236,7 +1236,7 @@ class VoiceAudioController:
                     self.volume_set(parsed["level"])
 
                 elif action == "interrupt":
-                    self.speak("¿Qué necesitas?", can_interrupt=False)
+                    self.speak("Â¿QuÃ© necesitas?", can_interrupt=False)
 
                 elif action == "help":
                     self.show_help()
@@ -1265,11 +1265,11 @@ class VoiceAudioController:
                     self.remove_last()
 
                 else:
-                    # No entendido → no spameamos a Discord, solo respondemos local
+                    # No entendido â†’ no spameamos a Discord, solo respondemos local
                     self.play_chime("error")
-                    self.speak("No entendí. Di ayuda para ver los comandos.", can_interrupt=True, broadcast=False)
+                    self.speak("No entendÃ­. Di ayuda para ver los comandos.", can_interrupt=True, broadcast=False)
 
-                # Log de rendimiento para todas las acciones que llegan hasta aquí
+                # Log de rendimiento para todas las acciones que llegan hasta aquÃ­
                 self._record_cmd(cmd, action, parsed.get("query", ""))
 
             except KeyboardInterrupt:
@@ -1277,7 +1277,7 @@ class VoiceAudioController:
                 break
             except Exception as e:
                 print(f"[ERROR BUCLE] {e}")
-                self.speak("Ocurrió un error. Reintentando.", can_interrupt=False)
+                self.speak("OcurriÃ³ un error. Reintentando.", can_interrupt=False)
                 time.sleep(1)
 
 

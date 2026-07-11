@@ -262,7 +262,7 @@ async def http_command(request: web.Request, bot) -> web.Response:
                 "need_spotify_auth": True,
                 "error": (
                     f"Hola {user_name}. Primero tenes que vincular tu cuenta de Spotify. "
-                    "Di 'Oye Rodolfo, vincula mi Spotify'."
+                    "Di 'Oye Rodo, vincula mi Spotify'."
                 ),
             })
 

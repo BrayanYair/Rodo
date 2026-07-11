@@ -29,11 +29,13 @@ if getattr(sys, "frozen", False):
 else:
     _MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-_VERIFIER_PATH = os.path.join(_MODULE_DIR, "byarox_verifier.pkl")
+_VERIFIER_PATH = os.path.join(_MODULE_DIR, "rodo_verifier.pkl")
 
 # Parámetros de audio
 _SAMPLE_RATE = 16000
 _CHUNK_SAMPLES = 1280  # 80 ms a 16kHz
+_MIN_WAKE_RMS = 0.008  # descarta silencio/ruido muy bajo antes del clasificador
+_MAX_WAKE_ZCR = 0.25   # ruido blanco suele cruzar por cero mucho más que voz
 
 
 def _load_pyaudio():
@@ -68,6 +70,17 @@ def _load_verifier(pkl_path: str):
     except Exception as e:
         logger.warning(f"No se pudo cargar verifier pkl: {e}")
         return None
+
+
+def _passes_audio_gate(audio_int16: np.ndarray) -> bool:
+    """Filtro barato antes del wakeword: descarta silencio y ruido blanco."""
+    audio_f32 = audio_int16.astype(np.float32) / 32768.0
+    rms = float(np.sqrt(np.mean(audio_f32 ** 2)))
+    if rms < _MIN_WAKE_RMS:
+        return False
+    signs = np.signbit(audio_f32)
+    zcr = float(np.mean(signs[1:] != signs[:-1])) if len(signs) > 1 else 0.0
+    return zcr <= _MAX_WAKE_ZCR
 
 
 class WakeWordEngine:
@@ -203,15 +216,17 @@ class WakeWordEngine:
     def _predict_fallback(self, audio_int16: np.ndarray, oww_model) -> tuple:
         """Modo fallback: usa score nativo de hey_jarvis_v0.1."""
         try:
+            if not _passes_audio_gate(audio_int16):
+                return 0.0, "rodo"
             # openwakeword.predict espera int16 o float32
             prediction = oww_model.predict(audio_int16)
             # prediction es dict: {model_name: score}
             scores = list(prediction.values())
             score = float(max(scores)) if scores else 0.0
-            return score, "byarox"
+            return score, "rodo"
         except Exception as e:
             logger.debug(f"_predict_fallback error: {e}")
-            return 0.0, "byarox"
+            return 0.0, "rodo"
 
     def _predict_verifier(self, audio_int16: np.ndarray, oww_model, verifier) -> tuple:
         """
@@ -223,12 +238,14 @@ class WakeWordEngine:
           flatten → (1, 1536) → LogisticRegression → proba clase 1
         """
         try:
+            if not _passes_audio_gate(audio_int16):
+                return 0.0, "rodo"
             oww_model.predict(audio_int16)
 
             # Mismo método que el entrenamiento: get_features(16) → (1, 16, 96)
             feats = oww_model.preprocessor.get_features(16)
             if feats is None or feats.shape[1] != 16:
-                return 0.0, "byarox"
+                return 0.0, "rodo"
 
             emb_flat = feats.reshape(1, -1).astype(np.float32)  # (1, 1536)
 
@@ -240,7 +257,7 @@ class WakeWordEngine:
             else:
                 score = float(verifier.predict(emb_flat)[0])
 
-            return score, "byarox"
+            return score, "rodo"
         except Exception as e:
             logger.debug(f"_predict_verifier error: {e}")
-            return 0.0, "byarox"
+            return 0.0, "rodo"

@@ -4,8 +4,8 @@ import functools
 
 BRAND_NAME = "Byarox"
 ASSISTANT_NAME = "Rodolfo"
-PRIMARY_ACTIVATOR = "oye rodolfo"
-ACTIVATOR_NAMES = (PRIMARY_ACTIVATOR, "rodolfo")
+PRIMARY_ACTIVATOR = "oye rodo"
+ACTIVATOR_NAMES = (PRIMARY_ACTIVATOR, "rodo", "oye rodolfo", "rodolfo")
 
 @functools.lru_cache(maxsize=1024)
 def normalize(cmd: str) -> str:
@@ -50,13 +50,33 @@ _CONTENT_PATTERNS = [
     ), "playlist"),
 ]
 
+# Géneros musicales — "pon reggaeton" busca una playlist del género en vez de
+# un único track, así la cola queda con varias canciones y sigue sonando.
+_GENRES = {
+    "reggaeton", "regueton", "salsa", "bachata", "cumbia", "cumbias",
+    "vallenato", "merengue", "rock", "rock en español", "pop",
+    "pop en español", "trap", "urbano", "musica urbana", "electronica",
+    "reggae", "banda", "ranchera", "corridos", "bolero", "jazz", "blues",
+    "rap", "hip hop", "edm", "techno", "house", "criolla",
+    "musica criolla", "huayno", "baladas", "balada", "disco", "funk",
+    "soul", "kpop", "k pop", "indie", "punk", "metal", "dembow", "perreo",
+}
+_GENRE_PREFIX_RE = re.compile(r"^(?:(?:algo|musica|canciones?|temas?|un\s+poco)\s+de|un|una)\s+(.+)$")
+
 def _detect_content_type(text: str) -> tuple[str, str | None]:
     """
     Detecta si el texto describe un tipo de contenido específico.
     Retorna (query_limpia, spotify_type).
     """
+    t = text.strip()
+
+    m = _GENRE_PREFIX_RE.match(t)
+    genre_candidate = m.group(1).strip() if m else t
+    if genre_candidate in _GENRES:
+        return genre_candidate, "playlist"
+
     for pattern, ctype in _CONTENT_PATTERNS:
-        m = pattern.match(text.strip())
+        m = pattern.match(t)
         if m:
             return m.group(1).strip(), ctype
     return text, None

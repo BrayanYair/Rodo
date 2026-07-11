@@ -15,12 +15,12 @@ def fix_common_stt_errors(cmd: str) -> str:
     cmd = re.sub(r"\bdetente\b", "deten", cmd)
     cmd = re.sub(r"\bskype\b", "skip", cmd)
 
-    # Variantes habituales de "oye rodolfo" en Google STT.
-    cmd = re.sub(r"\boie\s+rodolfo\b", "oye rodolfo", cmd)
-    cmd = re.sub(r"\bque\s+rodolfo\b", "oye rodolfo", cmd)
-    cmd = re.sub(r"\bokay\s+rodolfo\b", "oye rodolfo", cmd)
-    cmd = re.sub(r"\boye\s+redolfo\b", "oye rodolfo", cmd)
-    cmd = re.sub(r"\boye\s+adolfo\b", "oye rodolfo", cmd)
+    # Variantes habituales de "oye rodo" en Google STT.
+    cmd = re.sub(r"\boie\s+(?:rodo|rodolfo)\b", "oye rodo", cmd)
+    cmd = re.sub(r"\b(?:que|okay)\s+(?:rodo|rodolfo)\b", "oye rodo", cmd)
+    cmd = re.sub(r"\boye\s+(?:todo|lodo|rolo|robo|rodoox|roblox|rodolfo|redolfo|adolfo)\b", "oye rodo", cmd)
+    cmd = re.sub(r"\brodoox\b", "rodo", cmd)
+    cmd = re.sub(r"\broblox\b", "rodo", cmd)
     cmd = re.sub(r"\bredolfo\b", "rodolfo", cmd)
     cmd = re.sub(r"\badolfo\b", "rodolfo", cmd)
     cmd = re.sub(r"\brolfo\b", "rodolfo", cmd)

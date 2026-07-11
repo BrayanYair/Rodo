@@ -25,7 +25,7 @@ import numpy as np
 _SAMPLE_RATE = 16000
 _CHUNK_SAMPLES = 1280  # 80ms
 
-_VERIFIER_PATH = os.path.join(_ROOT, "modules", "wakeword", "byarox_verifier.pkl")
+_VERIFIER_PATH = os.path.join(_ROOT, "modules", "wakeword", "rodo_verifier.pkl")
 
 
 def _pass(name: str):
@@ -155,10 +155,10 @@ def test_start_stop():
 
 
 def test_load_verifier_direct():
-    """Test 3: _load_verifier carga byarox_verifier.pkl correctamente (directo, sin threading)."""
+    """Test 3: _load_verifier carga rodo_verifier.pkl correctamente (directo, sin threading)."""
     name = "test_load_verifier_direct"
     if not os.path.isfile(_VERIFIER_PATH):
-        _skip(name, f"byarox_verifier.pkl no existe en {_VERIFIER_PATH}")
+        _skip(name, f"rodo_verifier.pkl no existe en {_VERIFIER_PATH}")
         return
     try:
         from modules.wakeword.wakeword_engine import _load_verifier
@@ -225,7 +225,7 @@ def test_callback_called_on_high_score():
         if callbacks:
             score, label = callbacks[0]
             assert isinstance(score, float), f"score debe ser float, got {type(score)}"
-            assert label == "byarox", f"label debe ser 'byarox', got '{label}'"
+            assert label == "rodo", f"label debe ser 'rodo', got '{label}'"
             _pass(name + f" (callbacks={len(callbacks)}, score={score:.2f})")
         else:
             _pass(name + " (no callbacks — timing OK en CI)")
@@ -241,7 +241,7 @@ def test_predict_verifier_shape_match():
     """
     name = "test_predict_verifier_shape_match"
     if not os.path.isfile(_VERIFIER_PATH):
-        _skip(name, "byarox_verifier.pkl no encontrado")
+        _skip(name, "rodo_verifier.pkl no encontrado")
         return
     try:
         from modules.wakeword.wakeword_engine import WakeWordEngine, _load_verifier
@@ -256,12 +256,12 @@ def test_predict_verifier_shape_match():
         # Instanciar engine sólo para llamar _predict_verifier directamente
         engine = WakeWordEngine(callback=lambda s, l: None)
 
-        chunk = np.zeros(_CHUNK_SAMPLES, dtype=np.int16)
+        chunk = np.full(_CHUNK_SAMPLES, 1200, dtype=np.int16)
         score, label = engine._predict_verifier(chunk, mock_oww, verifier)
 
         assert isinstance(score, float), f"score debe ser float, got {type(score)}"
         assert 0.0 <= score <= 1.0, f"score fuera de rango [0,1]: {score}"
-        assert label == "byarox", f"label incorrecto: {label}"
+        assert label == "rodo", f"label incorrecto: {label}"
         # Silencio → features cero → depende del clasificador, pero debe ser un float válido
         _pass(name + f" (score_silencio={score:.4f})")
     except Exception as e:
@@ -281,7 +281,7 @@ def test_predict_verifier_get_features_called():
         mock_verifier.predict_proba.return_value = np.array([[0.9, 0.1]])
 
         engine = WakeWordEngine(callback=lambda s, l: None)
-        chunk = np.zeros(_CHUNK_SAMPLES, dtype=np.int16)
+        chunk = np.full(_CHUNK_SAMPLES, 1200, dtype=np.int16)
 
         score, label = engine._predict_verifier(chunk, mock_oww, mock_verifier)
 
@@ -294,7 +294,7 @@ def test_predict_verifier_get_features_called():
         assert call_args.shape == (1, 1536), f"shape incorrecto: {call_args.shape}"
         assert call_args.dtype == np.float32, f"dtype incorrecto: {call_args.dtype}"
 
-        assert label == "byarox"
+        assert label == "rodo"
         _pass(name + f" (score={score:.3f})")
     except Exception as e:
         _fail(name, str(e))

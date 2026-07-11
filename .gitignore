@@ -10,6 +10,10 @@
 *.jsonl
 *.log
 overlay_pos.json
+rodolfo-bot/.cache
+rodolfo-bot/rodo_log.txt
+scratch/
+rodolfo-amigo/modules/wakeword/rodoox_verifier.pkl
 # Base de datos de caché musical (runtime, se regenera automáticamente)
 rodolfo-bot/data/music_cache.db
 
